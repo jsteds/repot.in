@@ -371,6 +371,22 @@ class ReportingApp(QMainWindow):
         master_menu.addAction(import_master_action)
         # -------------------------------------------------
 
+        # --- [MENU BARU: PENGATURAN] ---
+        settings_menu = self.menu_bar.addMenu("&Settings")
+        tab_vis_menu = settings_menu.addMenu("Visibilitas Tab Laporan")
+        
+        self.tab_visibility_actions = {}
+        tab_names = ["BSCD", "Kas & Tips", "Order Barang", "In-Use", "Konversi Waste", "Edspayed", "Minum"]
+        
+        for name in tab_names:
+            action = QAction(name, self, checkable=True)
+            is_vis = self.config_manager.get_tab_visibility(name)
+            action.setChecked(is_vis)
+            action.toggled.connect(lambda checked, n=name: self._toggle_tab_visibility(n, checked))
+            tab_vis_menu.addAction(action)
+            self.tab_visibility_actions[name] = action
+        # -------------------------------------------------
+
         help_menu = self.menu_bar.addMenu("&Bantuan")
         about_action = QAction("Tentang Repot.in", self)
         about_action.triggered.connect(self._show_about_dialog)
@@ -387,6 +403,22 @@ class ReportingApp(QMainWindow):
         changelog_action.triggered.connect(self._show_changelog_dialog)
         help_menu.addAction(changelog_action)
     
+    def _toggle_tab_visibility(self, tab_id, is_visible):
+        self.config_manager.set_tab_visibility(tab_id, is_visible)
+        
+        if hasattr(self, 'main_dashboard_ui') and self.main_dashboard_ui:
+            btn_map = {
+                "BSCD": self.main_dashboard_ui.btn_bscd,
+                "Kas & Tips": self.main_dashboard_ui.btn_kas,
+                "Order Barang": self.main_dashboard_ui.btn_order,
+                "In-Use": self.main_dashboard_ui.btn_inuse,
+                "Konversi Waste": self.main_dashboard_ui.btn_waste,
+                "Edspayed": self.main_dashboard_ui.btn_edspayed,
+                "Minum": self.main_dashboard_ui.btn_minum
+            }
+            if tab_id in btn_map:
+                btn_map[tab_id].setVisible(is_visible)
+
     def _show_calculator(self):
         if self.calculator_dialog is None or not self.calculator_dialog.isVisible():
             self.calculator_dialog = CalculatorDialog(self) 
@@ -509,6 +541,20 @@ class ReportingApp(QMainWindow):
         self.edspayed_idx = self.main_dashboard_ui.main_stack.addWidget(self.edspayed_tab_ui) # Index 7
         self.minum_tab = MinumTab(self)
         self.minum_idx = self.main_dashboard_ui.main_stack.addWidget(self.minum_tab) # Index 8
+
+        # --- Apply visibility based on config ---
+        btn_map = {
+            "BSCD": self.main_dashboard_ui.btn_bscd,
+            "Kas & Tips": self.main_dashboard_ui.btn_kas,
+            "Order Barang": self.main_dashboard_ui.btn_order,
+            "In-Use": self.main_dashboard_ui.btn_inuse,
+            "Konversi Waste": self.main_dashboard_ui.btn_waste,
+            "Edspayed": self.main_dashboard_ui.btn_edspayed,
+            "Minum": self.main_dashboard_ui.btn_minum
+        }
+        for name, btn in btn_map.items():
+            btn.setVisible(self.config_manager.get_tab_visibility(name))
+        # ----------------------------------------
 
         # Tombol report di sidebar sekarang aktif dari awal sesuai request user
 

@@ -66,6 +66,7 @@ class ConfigManager:
             'weekend_weight': '1.8604651',
             'chat_it_link': '',
             'auto_update': 'false',
+            'visible_tabs': '{}',
         }
         self.save_config()
 
@@ -288,7 +289,31 @@ class ConfigManager:
                 return site.get('Nama Toko', '')
         return ""
 
+    # --- Tab Visibility ---
+    def get_tab_visibility(self, tab_id: str) -> bool:
+        """Mendapatkan status show/hide dari sebuah tab. Default: True"""
+        visible_tabs_str = self.config.get('DEFAULT', 'visible_tabs', fallback='{}')
+        try:
+            visible_tabs = json.loads(visible_tabs_str)
+            # Default ke True jika tidak ada pengaturan sebelumnya
+            return visible_tabs.get(tab_id, True)
+        except json.JSONDecodeError:
+            return True
 
+    def set_tab_visibility(self, tab_id: str, is_visible: bool):
+        """Menyimpan status show/hide untuk sebuah tab."""
+        visible_tabs_str = self.config.get('DEFAULT', 'visible_tabs', fallback='{}')
+        try:
+            visible_tabs = json.loads(visible_tabs_str)
+        except json.JSONDecodeError:
+            visible_tabs = {}
+            
+        visible_tabs[tab_id] = is_visible
+        
+        if 'DEFAULT' not in self.config:
+            self.config.add_section('DEFAULT')
+        self.config['DEFAULT']['visible_tabs'] = json.dumps(visible_tabs)
+        self.save_config()
         
     # --- Metode untuk menyimpan tema ---
     def save_theme(self, theme_name):
