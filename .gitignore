@@ -1,0 +1,53 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# === Virtual Environment ===
+.venv/
+venv/
+env/
+
+# === PyInstaller Build Output ===
+build/
+dist/
+*.exe
+*.spec
+
+# === Data & Config (sensitif/lokal) ===
+data/
+downloads/
+config/
+*.db
+*.sqlite3
+
+# === Log & Temp ===
+*.log
+error.log
+check.txt
+
+# === Excel & PDF (file data lokal) ===
+*.xlsx
+*.xls
+*.pdf
+*.bin
+
+# === Screenshot & debug scripts ===
+screenshot*.png
+screenshot_script.py
+test_*.py
+check_*.py
+fix_*.py
+trigger_*.py
+simulasi_*.py
+
+# === VS Code ===
+.vscode/
+
+# === Misc ===
+available_skills_table.md
+manifest.json
+test_run.py
+update_template.py
