@@ -54,6 +54,7 @@ from ui.todo_dialog import TodoListDialog
 from ui.notes_dialog import NotesDialog
 from ui.downloader_dialog import DownloaderDialog, FileDownloadWorker
 from modules.workers import FileWorker, HistoricalDataWorker, GoogleSheetWorker, VersionWorker, CsvImportWorker
+from ui.minum_tab import MinumTab
 
 # --- [FIX CRITICAL] HAPUS SalesReportTab DARI SINI AGAR TIDAK MENIMPA YANG DI ATAS ---
 from ui.ui_components import (
@@ -506,6 +507,8 @@ class ReportingApp(QMainWindow):
         self.inuse_idx = self.main_dashboard_ui.main_stack.addWidget(self.inuse_tab) # Index 5
         self.waste_idx = self.main_dashboard_ui.main_stack.addWidget(self.waste_tab_ui) # Index 6
         self.edspayed_idx = self.main_dashboard_ui.main_stack.addWidget(self.edspayed_tab_ui) # Index 7
+        self.minum_tab = MinumTab(self)
+        self.minum_idx = self.main_dashboard_ui.main_stack.addWidget(self.minum_tab) # Index 8
 
         # Tombol report di sidebar sekarang aktif dari awal sesuai request user
 
@@ -551,7 +554,8 @@ class ReportingApp(QMainWindow):
             self.main_dashboard_ui.btn_order: self.order_idx,
             self.main_dashboard_ui.btn_inuse: self.inuse_idx,
             self.main_dashboard_ui.btn_waste: self.waste_idx,
-            self.main_dashboard_ui.btn_edspayed: self.edspayed_idx
+            self.main_dashboard_ui.btn_edspayed: self.edspayed_idx,
+            self.main_dashboard_ui.btn_minum: self.minum_idx,
         }
         self.main_dashboard_ui.nav_index_requested.connect(self._handle_nav_change)
         

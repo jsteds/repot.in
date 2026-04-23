@@ -588,6 +588,7 @@ class MainDashboardUI(QWidget):
         self.btn_inuse = self._create_nav_button("In-Use", "🏷")
         self.btn_waste = self._create_nav_button("Konversi Waste", "♻")
         self.btn_edspayed = self._create_nav_button("Edspayed", "🕒")
+        self.btn_minum = self._create_nav_button("Minum", "💧")
         
         self.btn_import = self._create_nav_button("Import CSV", "📁")
         self.btn_sync_aurora = self._create_nav_button("Sync Aurora", "☁")
@@ -613,6 +614,7 @@ class MainDashboardUI(QWidget):
         sidebar_layout.addWidget(self.btn_inuse)
         sidebar_layout.addWidget(self.btn_waste)
         sidebar_layout.addWidget(self.btn_edspayed)
+        sidebar_layout.addWidget(self.btn_minum)
         
         sidebar_layout.addSpacing(10)
         lbl_system = QLabel(" SYSTEM")
@@ -689,7 +691,8 @@ class MainDashboardUI(QWidget):
         # Kita simpan button report dalam dictionary/list agar mudah dikontrol enabled/disabled state-nya
         self.report_buttons = [
             self.btn_sales_report, self.btn_bscd, self.btn_kas, 
-            self.btn_order, self.btn_inuse, self.btn_waste, self.btn_edspayed
+            self.btn_order, self.btn_inuse, self.btn_waste, self.btn_edspayed,
+            self.btn_minum
         ]
 
     def _create_nav_button(self, text, icon_str, checked=False):

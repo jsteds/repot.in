@@ -36,6 +36,7 @@ PLACEHOLDER_FILE = os.path.join(BASE_DIR, 'config', 'placeholders.json')
 WASTE_RECIPES_FILE = os.path.join(BASE_DIR, 'config', 'waste_recipes.json')
 TODO_FILE_PATH = os.path.join(BASE_DIR, 'data', 'todos.json')
 NOTES_FILE_PATH = os.path.join(BASE_DIR, 'data', 'notes.json')
+MINUM_DATA_FILE = os.path.join(BASE_DIR, 'data', 'minum_data.json')
 
 # --- [DOWNLOADER] ID file manifest.json di Google Drive ---
 # Langkah: Upload manifest.json ke Google Drive → Share (Anyone with link) →
