@@ -92,6 +92,8 @@ class ConfigManager:
             'weekday_weight': float(self.config.get('DEFAULT', 'weekday_weight', fallback='1.0')),
             'weekend_weight': float(self.config.get('DEFAULT', 'weekend_weight', fallback='1.8604651')),
             'auto_update': self.config.getboolean('DEFAULT', 'auto_update', fallback=False),
+            'bpk_name_mode': self.config.get('DEFAULT', 'bpk_name_mode', fallback='full'),
+            'dev_whatsapp': self.config.get('DEFAULT', 'dev_whatsapp', fallback=''),
         }
 
     def get_monthly_targets(self):
@@ -313,6 +315,13 @@ class ConfigManager:
         if 'DEFAULT' not in self.config:
             self.config.add_section('DEFAULT')
         self.config['DEFAULT']['visible_tabs'] = json.dumps(visible_tabs)
+        self.save_config()
+
+    def set_value(self, key: str, value: str):
+        """Menyimpan nilai bebas ke config dengan key tertentu."""
+        if 'DEFAULT' not in self.config:
+            self.config.add_section('DEFAULT')
+        self.config['DEFAULT'][key] = str(value)
         self.save_config()
         
     # --- Metode untuk menyimpan tema ---

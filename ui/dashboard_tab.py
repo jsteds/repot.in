@@ -5,7 +5,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, 
-    QDateEdit, QGroupBox, QFrame, QApplication
+    QDateEdit, QGroupBox, QFrame, QApplication, QGridLayout,
+    QPushButton, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QDate, QTimer, QPropertyAnimation, QEasingCurve, QPoint
 from PyQt5.QtGui import QColor
@@ -156,19 +158,39 @@ class DashboardTab(QWidget):
         self.achievement_badge.setVisible(False)
         filter_layout.addWidget(self.achievement_badge)
         
+        self.btn_prakiraan_bonus = QPushButton("Prakiraan Bonus")
+        self.btn_prakiraan_bonus.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 4px 12px;
+                border-radius: 12px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #219653;
+            }
+        """)
+        self.btn_prakiraan_bonus.setVisible(False)
+        self.btn_prakiraan_bonus.clicked.connect(self._show_prakiraan_bonus)
+        filter_layout.addWidget(self.btn_prakiraan_bonus)
+        
         main_layout.addLayout(filter_layout)
         
-        # --- 2. KPI CARDS (Top Row) ---
+        # --- 2. KPI CARDS (Top Row -> 1 Baris agar lebih efisien space) ---
         kpi_layout = QHBoxLayout()
-        kpi_layout.setSpacing(10)
+        kpi_layout.setSpacing(8)
         
         self.kpi_sales_today = self._create_kpi_card("Sales Today", "Rp 0")
         self.kpi_sales_mtd = self._create_kpi_card("Sales MTD", "Rp 0")
-        self.kpi_to_achieve = self._create_kpi_card("To Achieve (MTD)", "Rp 0\n(0%)")
-        self.kpi_sales_sly = self._create_kpi_card("Sales SLY (YoY)", "Rp 0\n(0%)")
-        self.kpi_forecast = self._create_kpi_card("Forecast Sales", "Rp 0")
-        self.kpi_qty_large = self._create_kpi_card("Qty Large (MTD)", "0\n(0%)")
-        self.kpi_qty_topping = self._create_kpi_card("Qty Topping (MTD)", "0\n(0%)")
+        self.kpi_to_achieve = self._create_kpi_card("To Achieve", "Rp 0\n(0%)")
+        self.kpi_sales_sly = self._create_kpi_card("SLY (YoY)", "Rp 0\n(0%)")
+        self.kpi_forecast = self._create_kpi_card("Forecast", "Rp 0")
+        self.kpi_qty_large = self._create_kpi_card("Large", "0\n(0%)")
+        self.kpi_qty_topping = self._create_kpi_card("Topping", "0\n(0%)")
+        self.kpi_productivity = self._create_kpi_card("Productivity", "Rp 0\n(-)")
         
         kpi_layout.addWidget(self.kpi_sales_today)
         kpi_layout.addWidget(self.kpi_sales_mtd)
@@ -177,6 +199,7 @@ class DashboardTab(QWidget):
         kpi_layout.addWidget(self.kpi_forecast)
         kpi_layout.addWidget(self.kpi_qty_large)
         kpi_layout.addWidget(self.kpi_qty_topping)
+        kpi_layout.addWidget(self.kpi_productivity)
         
         main_layout.addLayout(kpi_layout)
         
@@ -214,7 +237,9 @@ class DashboardTab(QWidget):
 
         main_layout.addLayout(middle_chart_layout)
         
-        # Bottom Row: Dynamic Chart
+        # Bottom Row: Dynamic Chart & Comparation Chart
+        bottom_chart_layout = QHBoxLayout()
+        
         self.chart_dyn_group = QGroupBox("Grafik Dinamis")
         dyn_layout = QVBoxLayout(self.chart_dyn_group)
         
@@ -241,11 +266,32 @@ class DashboardTab(QWidget):
         dyn_layout.addLayout(dyn_controls)
         
         # Dynamic Chart Canvas
-        self.fig_dyn = Figure(figsize=(10, 3), dpi=100)
+        self.fig_dyn = Figure(figsize=(6, 3), dpi=100)
         self.chart_dyn = FigureCanvas(self.fig_dyn)
         dyn_layout.addWidget(self.chart_dyn)
         
-        main_layout.addWidget(self.chart_dyn_group)
+        bottom_chart_layout.addWidget(self.chart_dyn_group, 6)
+        
+        # Comparation Chart (Today vs LM)
+        self.chart_comp_group = QGroupBox("Komparasi Sales")
+        comp_layout = QVBoxLayout(self.chart_comp_group)
+        
+        self.comp_type_combo = QComboBox()
+        self.comp_type_combo.addItems([
+            "Today vs Last Month",
+            "Today vs Last Week",
+            "MTD vs Last Month"
+        ])
+        self.comp_type_combo.currentIndexChanged.connect(self._update_comparation_chart)
+        comp_layout.addWidget(self.comp_type_combo)
+        
+        self.fig_comp = Figure(figsize=(4, 3), dpi=100)
+        self.chart_comp = FigureCanvas(self.fig_comp)
+        comp_layout.addWidget(self.chart_comp)
+        
+        bottom_chart_layout.addWidget(self.chart_comp_group, 4)
+        
+        main_layout.addLayout(bottom_chart_layout)
         
         # Panggil inisialisasi tanggal pertama kali
         self.set_initial_date_range()
@@ -298,14 +344,18 @@ class DashboardTab(QWidget):
             }
         """)
         layout = QVBoxLayout(frame)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(2)
         
         lbl_title = QLabel(title)
-        lbl_title.setStyleSheet("color: #7f8c8d; font-size: 12px; font-weight: bold; border: none;")
+        lbl_title.setStyleSheet("color: #7f8c8d; font-size: 11px; font-weight: bold; border: none;")
         lbl_title.setAlignment(Qt.AlignCenter)
+        lbl_title.setWordWrap(True)
         
         lbl_value = QLabel(initial_value)
-        lbl_value.setStyleSheet("color: #2c3e50; font-size: 18px; font-weight: bold; border: none;")
+        lbl_value.setStyleSheet("color: #2c3e50; font-size: 14px; font-weight: bold; border: none;")
         lbl_value.setAlignment(Qt.AlignCenter)
+        lbl_value.setWordWrap(True)
         
         # Menyimpan referensi label ke object frame agar mudah diupdate nanti
         frame.title_label = lbl_title
@@ -343,12 +393,13 @@ class DashboardTab(QWidget):
         self.start_date.blockSignals(False)
         self.end_date.blockSignals(False)
         
-        # --- Update KPI Dynamic Labels ---
         lbl_period = "(MTD)" if selection == "Bulan Ini" else "(Period)"
         self.kpi_sales_mtd.title_label.setText(f"Sales {lbl_period.replace('(', '').replace(')', '')}")
-        self.kpi_to_achieve.title_label.setText(f"To Achieve {lbl_period}")
-        self.kpi_qty_large.title_label.setText(f"Qty Large {lbl_period}")
-        self.kpi_qty_topping.title_label.setText(f"Qty Topping {lbl_period}")
+        self.kpi_to_achieve.title_label.setText(f"To Achieve")
+        self.kpi_sales_sly.title_label.setText(f"SLY (YoY)")
+        self.kpi_qty_large.title_label.setText(f"Large")
+        self.kpi_qty_topping.title_label.setText(f"Topping")
+        self.kpi_productivity.title_label.setText(f"Productivity")
         
         self.load_data()
 
@@ -388,6 +439,7 @@ class DashboardTab(QWidget):
 
         # --- Opsi 2: Tampilkan badge di filter bar ---
         self.achievement_badge.setVisible(True)
+        self.btn_prakiraan_bonus.setVisible(True)
 
         # --- Opsi 3: Tampilkan celebration banner (inline, rapi) ---
         store_name = getattr(self.parent_app.config_manager, 'get_store_name', lambda x: '')(
@@ -415,6 +467,7 @@ class DashboardTab(QWidget):
 
         # --- Sembunyikan badge ---
         self.achievement_badge.setVisible(False)
+        self.btn_prakiraan_bonus.setVisible(False)
 
         # --- Sembunyikan banner ---
         self._banner.hide_banner()
@@ -424,6 +477,90 @@ class DashboardTab(QWidget):
         # s_date & e_date akan digunakan untuk hitung MTD Periodical, e_date untuk 'Today' metrics
         metrics = self.db.get_dashboard_metrics(s_date, e_date, site_code)
         
+        import datetime
+        if isinstance(e_date, str):
+            e_date_obj = datetime.datetime.strptime(e_date, "%Y-%m-%d").date()
+        else:
+            e_date_obj = e_date
+        # --- FIND ACTUAL LATEST DATE ---
+        actual_latest_str = e_date_obj.strftime('%Y-%m-%d')
+        conn = self.db.get_connection()
+        if conn:
+            try:
+                c = conn.cursor()
+                site_filter = " AND site_code = ?" if site_code else ""
+                params_latest = [e_date_obj.strftime('%Y-%m-%d'), site_code] if site_code else [e_date_obj.strftime('%Y-%m-%d')]
+                c.execute(f"SELECT MAX(created_date) as max_date FROM raw_transactions WHERE created_date <= ? AND is_void = 0 {site_filter}", params_latest)
+                row = c.fetchone()
+                if row and row['max_date']:
+                    actual_latest_str = row['max_date']
+            except Exception: pass
+            finally: conn.close()
+        
+        try:
+            actual_latest_obj = datetime.datetime.strptime(actual_latest_str, "%Y-%m-%d").date()
+        except Exception:
+            actual_latest_obj = e_date_obj
+        
+        # --- GET RAW METRICS HELPER ---
+        def get_raw_metrics(dt_start_obj, dt_end_obj=None):
+            conn = self.db.get_connection()
+            if not conn: return {'sales': 0, 'tc': 0, 'large': 0, 'ouast': 0, 'ac': 0}
+            try:
+                cursor = conn.cursor()
+                site_filter = " AND site_code = ?" if site_code else ""
+                
+                if dt_end_obj:
+                    params = [dt_start_obj.strftime('%Y-%m-%d'), dt_end_obj.strftime('%Y-%m-%d')]
+                    if site_code: params.append(site_code)
+                    date_cond = "created_date BETWEEN ? AND ?"
+                else:
+                    params = [dt_start_obj.strftime('%Y-%m-%d')]
+                    if site_code: params.append(site_code)
+                    date_cond = "created_date = ?"
+                
+                cursor.execute(f"SELECT sum(net_price) as sales, count(DISTINCT receipt_no) as tc FROM raw_transactions WHERE {date_cond} AND is_void = 0 {site_filter}", params)
+                r1 = cursor.fetchone()
+                sales = (r1['sales'] / 1.1) if r1 and r1['sales'] else 0
+                tc = r1['tc'] if r1 and r1['tc'] else 0
+                
+                cursor.execute(f"SELECT sum(quantity) as qty FROM raw_transactions WHERE {date_cond} AND is_void = 0 AND article_name LIKE '%(L)%' {site_filter}", params)
+                r2 = cursor.fetchone()
+                large = r2['qty'] if r2 and r2['qty'] else 0
+                
+                cursor.execute(f"SELECT sum(net_price) as sales FROM raw_transactions WHERE {date_cond} AND is_void = 0 AND (product_group_name LIKE '%Food%' OR product_group_name LIKE '%Snack%' OR product_group_name LIKE '%Ouast%') {site_filter}", params)
+                r3 = cursor.fetchone()
+                ouast = (r3['sales'] / 1.1) if r3 and r3['sales'] else 0
+                
+                ac = sales / tc if tc > 0 else 0
+                return {'sales': sales, 'tc': tc, 'large': large, 'ouast': ouast, 'ac': ac}
+            except Exception:
+                return {'sales': 0, 'tc': 0, 'large': 0, 'ouast': 0, 'ac': 0}
+            finally:
+                conn.close()
+
+        # Dates
+        lw_date_obj = actual_latest_obj - datetime.timedelta(days=7)
+        lm_date_obj = actual_latest_obj - datetime.timedelta(days=28)
+        
+        try:
+            from dateutil.relativedelta import relativedelta
+            s_date_obj = datetime.datetime.strptime(s_date, "%Y-%m-%d").date() if isinstance(s_date, str) else s_date
+            mtd_lm_start = s_date_obj - relativedelta(months=1)
+            mtd_lm_end = actual_latest_obj - relativedelta(months=1)
+        except Exception:
+            s_date_obj = datetime.datetime.strptime(s_date, "%Y-%m-%d").date() if isinstance(s_date, str) else s_date
+            mtd_lm_start = s_date_obj - datetime.timedelta(days=28)
+            mtd_lm_end = actual_latest_obj - datetime.timedelta(days=28)
+
+        metrics['comp_data'] = {
+            'Today': get_raw_metrics(actual_latest_obj),
+            'Last Week': get_raw_metrics(lw_date_obj),
+            'Last Month': get_raw_metrics(lm_date_obj),
+            'MTD': get_raw_metrics(s_date_obj, actual_latest_obj),
+            'MTD Last Month': get_raw_metrics(mtd_lm_start, mtd_lm_end)
+        }
+        
         # 2. Update KPI Cards
         sales_mtd = metrics.get('sales_mtd', 0)
         sales_sly = metrics.get('sales_sly', 0)
@@ -432,15 +569,13 @@ class DashboardTab(QWidget):
 
         # ── Konversi e_date ke objek date (diperlukan untuk target_month & forecast) ──
         import calendar
-        from datetime import datetime
-        if isinstance(e_date, str):
-            e_date_obj = datetime.strptime(e_date, "%Y-%m-%d").date()
-        else:
-            e_date_obj = e_date
-
+        
         current_day = e_date_obj.day
         total_days_in_month = calendar.monthrange(e_date_obj.year, e_date_obj.month)[1]
         target_month = self.parent_app.config_manager.get_target_for_month(e_date_obj.month)
+        
+        self.current_sales_mtd = sales_mtd
+        self.current_target_month = target_month
 
         # Sales MTD + persentase pencapaian target
         if target_month > 0:
@@ -516,7 +651,15 @@ class DashboardTab(QWidget):
         else:
             forecast = 0
             
-        self.kpi_forecast.value_label.setText(self._format_currency(forecast))
+        if target_month > 0:
+            forecast_pct = (forecast / target_month) * 100
+            fc_color = "green" if forecast_pct >= 100 else "red"
+            forecast_text = f"{self._format_currency(forecast)}\n(<span style='color:{fc_color};'>{forecast_pct:.1f}%</span>)"
+        else:
+            forecast_text = f"{self._format_currency(forecast)}\n(<span style='color:black;'>0.0%</span>)"
+            
+        self.kpi_forecast.value_label.setTextFormat(Qt.RichText)
+        self.kpi_forecast.value_label.setText(forecast_text)
         
         # --- Override Qty Large & Topping from ReportProcessor (Akurasi 100% dgn Sales Report) ---
         qty_large = metrics.get('qty_large', 0)
@@ -540,6 +683,39 @@ class DashboardTab(QWidget):
         self.kpi_qty_large.value_label.setText(f"{qty_large}\n({perc_large}%)")
         self.kpi_qty_topping.value_label.setText(f"{qty_topping}\n({perc_topping}%)")
         
+        # --- 2.5 Hitung Productivity ---
+        from utils.employee_utils import EmployeeDB
+        try:
+            emp_db = EmployeeDB()
+            employees = emp_db.get_all_employees()
+            fulltime_count = sum(1 for e in employees if e.get('jabatan') in ['Store Manager', 'Asst. Store Manager', 'Staff'])
+            partimer_count = sum(1 for e in employees if e.get('jabatan') == 'Partimer')
+            total_emp_value = fulltime_count + (partimer_count * 0.8)
+            
+            if total_emp_value > 0:
+                productivity = sales_mtd / total_emp_value
+                # Standar 35 Juta dengan margin +/- 5% (33.25jt - 36.75jt)
+                if productivity > 36750000:
+                    mpp_status = "MPP Kurang"
+                    status_color = "#e74c3c" # Merah
+                elif productivity < 33250000:
+                    mpp_status = "MPP Lebih"
+                    status_color = "#e67e22" # Orange
+                else:
+                    mpp_status = "MPP Cukup"
+                    status_color = "#27ae60" # Hijau
+                
+                prod_text = f"{self._format_currency(productivity)}<br><span style='color:{status_color}; font-size:12px; font-weight:normal;'>({mpp_status} | {total_emp_value:g} Ppl)</span>"
+            else:
+                prod_text = "Rp 0<br><span style='color:#7f8c8d; font-size:12px; font-weight:normal;'>(Tidak Ada Data Karyawan)</span>"
+        except Exception as e:
+            logging.error(f"Error kalkulasi productivity: {e}")
+            prod_text = "Rp 0<br><span style='color:#7f8c8d; font-size:12px; font-weight:normal;'>(Error)</span>"
+            
+        self.kpi_productivity.value_label.setTextFormat(Qt.RichText)
+        self.kpi_productivity.value_label.setText(prod_text)
+
+        
         # 3. Process Peak Hour Chart
         self._plot_peak_hour(metrics.get('peak_hour', []))
         
@@ -560,8 +736,10 @@ class DashboardTab(QWidget):
         # 5. Channel Chart (Ojol vs Instore)
         self._plot_channel_chart(metrics.get('channel_sales', []))
 
-        # 6. Process Dynamic Chart
+        # 6. Process Dynamic Chart & Comparation Chart
         self._update_dynamic_chart()
+        self.current_comp_data = metrics.get('comp_data', None)
+        self._update_comparation_chart()
 
     def _plot_peak_hour(self, data):
         self.fig_peak.clear()
@@ -570,19 +748,29 @@ class DashboardTab(QWidget):
             hours = [d['hour'] for d in data]
             sales = [d['sales'] for d in data]
             tc = [d['tc'] for d in data]
+            sales_ouast = [d.get('sales_ouast', 0) for d in data]
+            sales_non_ouast = [d.get('sales_non_ouast', 0) for d in data]
             
             # Line Chart for Sales
-            ax.plot(hours, sales, marker='o', linestyle='-', color='#3498db', label="Sales")
-            ax.set_ylabel("Sales (Rp)", color='#3498db')
-            ax.tick_params(axis='y', labelcolor='#3498db')
+            ax.plot(hours, sales, marker='o', linestyle='-', color='#2ecc71', label="Global", linewidth=2)
+            ax.plot(hours, sales_non_ouast, marker='s', linestyle='--', color='#3498db', label="Non-Ouast", linewidth=1.5, alpha=0.8)
+            ax.plot(hours, sales_ouast, marker='^', linestyle='-.', color='#f39c12', label="Ouast", linewidth=1.5, alpha=0.8)
+            
+            ax.set_ylabel("Sales (Rp)")
             
             # Create twin axis for TC
             ax2 = ax.twinx()
-            ax2.bar(hours, tc, alpha=0.3, color='#e74c3c', label="TC")
-            ax2.set_ylabel("Transaction Count", color='#e74c3c')
-            ax2.tick_params(axis='y', labelcolor='#e74c3c')
+            ax2.bar(hours, tc, alpha=0.15, color='#95a5a6', label="TC (Global)")
+            ax2.set_ylabel("Transaction Count", color='#7f8c8d')
+            ax2.tick_params(axis='y', labelcolor='#7f8c8d')
             
             ax.grid(True, linestyle='--', alpha=0.6)
+            
+            # Legend mapping
+            lines_1, labels_1 = ax.get_legend_handles_labels()
+            lines_2, labels_2 = ax2.get_legend_handles_labels()
+            ax.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', fontsize=8)
+            
             self.fig_peak.autofmt_xdate()
         else:
             ax.text(0.5, 0.5, "Tidak ada data Peak Hour", ha='center', va='center')
@@ -634,23 +822,24 @@ class DashboardTab(QWidget):
 
         n = len(labels)
         for i, (lbl, s, pct, clr) in enumerate(zip(labels, sizes, pcts, colors)):
-            # Posisi X per item: dibagi rata
+            # Posisi X per item: dibagi rata (0.25 dan 0.75 untuk n=2)
             x_center = (i + 0.5) / n
+            
             # Bullet warna (unicode kotak)
-            ax_legend.text(x_center - 0.12, 0.80, '■',
-                           ha='center', va='center', fontsize=14,
+            ax_legend.text(x_center - 0.02, 0.75, '■',
+                           ha='right', va='center', fontsize=10,
                            color=clr, transform=ax_legend.transAxes)
             # Label nama
-            ax_legend.text(x_center - 0.01, 0.80, lbl,
-                           ha='left', va='center', fontsize=8.5, fontweight='bold',
+            ax_legend.text(x_center + 0.02, 0.75, lbl,
+                           ha='left', va='center', fontsize=8, fontweight='bold',
                            color='#2c3e50', transform=ax_legend.transAxes)
             # Persen
-            ax_legend.text(x_center - 0.06, 0.46, f"{pct:.1f}%",
-                           ha='center', va='center', fontsize=9.5, fontweight='bold',
+            ax_legend.text(x_center, 0.40, f"{pct:.1f}%",
+                           ha='center', va='center', fontsize=8.5, fontweight='bold',
                            color=clr, transform=ax_legend.transAxes)
             # Nominal
-            ax_legend.text(x_center - 0.06, 0.15, self._format_currency(s),
-                           ha='center', va='center', fontsize=7.5, color='#666666',
+            ax_legend.text(x_center, 0.10, self._format_currency(s),
+                           ha='center', va='center', fontsize=7, color='#666666',
                            transform=ax_legend.transAxes)
 
         try: self.chart_channel.draw()
@@ -675,20 +864,118 @@ class DashboardTab(QWidget):
             
             # Sort asc so largest is at top in barh, limit to top 10 after aggregation
             data_sorted = sorted(agg_data, key=lambda x: x['qty'])[-10:]
-            names = [d['article_name'] for d in data_sorted]
+            
+            # Truncate names to avoid overlapping y-ticks and fit in figure
+            import textwrap
+            names = [textwrap.shorten(d['article_name'], width=18, placeholder="..") for d in data_sorted]
             qtys = [d['qty'] for d in data_sorted]
             
             colors = ['#1abc9c', '#2ecc71', '#3498db', '#9b59b6', '#34495e'] * 2
-            ax.barh(names, qtys, color=colors[:len(names)])
+            ax.barh(names, qtys, color=colors[:len(names)], height=0.7)
+            
+            # Adjust tick label size to prevent vertical overlapping
+            ax.tick_params(axis='y', labelsize=6.5)
+            
+            # Add value labels with padding
+            max_qty = max(qtys) if qtys else 1
+            pad = max_qty * 0.03
             for i, v in enumerate(qtys):
-                ax.text(v, i, str(v), va='center')
+                ax.text(v + pad, i, str(v), va='center', fontsize=7.5)
+            
+            # Expand x-limit slightly so text doesn't get cut off
+            ax.set_xlim(0, max_qty * 1.20)
             
             ax.grid(axis='x', linestyle='--', alpha=0.5)
         else:
             ax.text(0.5, 0.5, "Tidak ada data Top Menu", ha='center', va='center')
             
-        self.fig_top.tight_layout()
+        self.fig_top.subplots_adjust(left=0.35, right=0.90, top=0.90, bottom=0.15)
         try: self.chart_top.draw()
+        except Exception: pass
+
+    def _update_comparation_chart(self):
+        if not hasattr(self, 'current_comp_data') or not self.current_comp_data:
+            return
+            
+        comp_type = self.comp_type_combo.currentText()
+        if comp_type == "Today vs Last Month":
+            current_data = self.current_comp_data['Today']
+            prev_data = self.current_comp_data['Last Month']
+        elif comp_type == "Today vs Last Week":
+            current_data = self.current_comp_data['Today']
+            prev_data = self.current_comp_data['Last Week']
+        elif comp_type == "MTD vs Last Month":
+            current_data = self.current_comp_data['MTD']
+            prev_data = self.current_comp_data['MTD Last Month']
+        else:
+            return
+            
+        self._plot_comparation_chart(current_data, prev_data)
+
+    def _plot_comparation_chart(self, current_data, prev_data):
+        self.fig_comp.clear()
+        if not current_data or not prev_data:
+            return
+            
+        ax = self.fig_comp.add_subplot(111)
+        
+        metrics_list = [
+            ('Sales', current_data['sales'], prev_data['sales'], True),
+            ('Ouast', current_data['ouast'], prev_data['ouast'], True),
+            ('TC', current_data['tc'], prev_data['tc'], False),
+            ('AC', current_data['ac'], prev_data['ac'], True),
+            ('Large', current_data['large'], prev_data['large'], False)
+        ]
+        
+        metrics_list.reverse()
+        
+        labels = []
+        growths = []
+        colors = []
+        texts = []
+        
+        for name, t_val, lm_val, is_currency in metrics_list:
+            labels.append(name)
+            if lm_val > 0:
+                growth = ((t_val - lm_val) / lm_val) * 100
+            else:
+                growth = 100 if t_val > 0 else 0
+                
+            growths.append(growth)
+            colors.append('#2ecc71' if growth >= 0 else '#e74c3c')
+            
+            # Format actual value for display
+            if is_currency:
+                t_str = f"{t_val/1000:.0f}K" if t_val > 0 else "0"
+            else:
+                t_str = f"{int(t_val)}"
+                
+            texts.append(f"{t_str} ({growth:+.1f}%)")
+            
+        bars = ax.barh(labels, growths, color=colors, alpha=0.8, height=0.6)
+        
+        ax.axvline(0, color='black', linewidth=1.2, linestyle='-')
+        
+        for i, (growth, text) in enumerate(zip(growths, texts)):
+            if growth >= 0:
+                ax.text(growth + 5, i, text, va='center', ha='left', fontsize=8, color='#2c3e50', fontweight='bold')
+            else:
+                # Draw text to the right of 0-line to avoid overlapping left labels
+                ax.text(5, i, text, va='center', ha='left', fontsize=8, color='#2c3e50', fontweight='bold')
+                
+        max_g = max(growths + [0])
+        min_g = min(growths + [0])
+        ax.set_xlim(min_g - 10, max_g + 80)
+        
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_color('#bdc3c7')
+        ax.tick_params(axis='y', length=0, labelsize=9)
+        ax.tick_params(axis='x', labelsize=8, colors='#7f8c8d')
+        
+        self.fig_comp.subplots_adjust(left=0.25, right=0.85, top=0.90, bottom=0.15)
+        try: self.chart_comp.draw()
         except Exception: pass
 
     def _update_dynamic_chart(self):
@@ -778,3 +1065,109 @@ class DashboardTab(QWidget):
         self.fig_dyn.tight_layout(pad=1.5)
         try: self.chart_dyn.draw()
         except Exception: pass
+
+    def _show_prakiraan_bonus(self):
+        if not hasattr(self, 'current_sales_mtd') or not hasattr(self, 'current_target_month'):
+            return
+            
+        sales = self.current_sales_mtd
+        target = self.current_target_month
+        
+        if target <= 0:
+            QMessageBox.warning(self, "Perhatian", "Target belum disetel untuk bulan ini.")
+            return
+            
+        pct = (sales / target) * 100
+        
+        # Penentuan koefisien bonus berdasarkan persentase (Net Sales based)
+        if pct >= 120:
+            bonus_pct = 1.65
+        elif pct > 100:
+            bonus_pct = 1.20
+        elif pct >= 95:
+            bonus_pct = 0.90
+        else:
+            bonus_pct = 0
+            
+        if bonus_pct == 0:
+            QMessageBox.information(self, "Informasi", f"Pencapaian target ({pct:.1f}%) belum mencapai 95%, belum ada prakiraan bonus.")
+            return
+            
+        total_bonus = sales * (bonus_pct / 100)
+        
+        # Hitung share per role
+        ratio_sm = 3
+        ratio_asm = 2
+        ratio_staff = 1.25
+        
+        from utils.employee_utils import EmployeeDB
+        try:
+            emp_db = EmployeeDB()
+            employees = emp_db.get_all_employees()
+            count_sm = sum(1 for e in employees if e.get('jabatan') == 'Store Manager')
+            count_asm = sum(1 for e in employees if e.get('jabatan') == 'Asst. Store Manager')
+            count_staff = sum(1 for e in employees if e.get('jabatan') == 'Staff')
+        except Exception as e:
+            logging.error(f"Error fetching employees for bonus: {e}")
+            count_sm = 1
+            count_asm = 1
+            count_staff = 3
+            
+        # Jika belum ada data karyawan
+        if count_sm == 0 and count_asm == 0 and count_staff == 0:
+            count_sm = 1
+            count_asm = 1
+            count_staff = 3
+            
+        total_shares = (count_sm * ratio_sm) + (count_asm * ratio_asm) + (count_staff * ratio_staff)
+        if total_shares <= 0:
+            QMessageBox.warning(self, "Error", "Total proporsi share karyawan tidak valid.")
+            return
+            
+        bonus_per_share = total_bonus / total_shares
+        
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Prakiraan Bonus (Estimasi)")
+        dlg.setMinimumWidth(400)
+        layout = QVBoxLayout(dlg)
+        
+        # Info header
+        info_lbl = QLabel(f"<b>Pencapaian:</b> {pct:.2f}%<br>"
+                          f"<b>Nett Sales (MTD):</b> {self._format_currency(sales)}<br>"
+                          f"<b>Persentase Bonus:</b> {bonus_pct:.2f}%<br>"
+                          f"<b>Total Estimasi Bonus:</b> <span style='color:#27ae60; font-size:14px; font-weight:bold;'>{self._format_currency(total_bonus)}</span>")
+        layout.addWidget(info_lbl)
+        
+        # Tabel
+        table = QTableWidget(3, 4)
+        table.setHorizontalHeaderLabels(["Jabatan", "Jml Karyawan", "Rasio", "Estimasi Bonus/Org"])
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setSelectionMode(QTableWidget.NoSelection)
+        table.setAlternatingRowColors(True)
+        table.setStyleSheet("QTableWidget { background-color: white; border: 1px solid #dcdde1; }")
+        
+        def add_row(row, title, count, ratio):
+            table.setItem(row, 0, QTableWidgetItem(title))
+            table.setItem(row, 1, QTableWidgetItem(str(count)))
+            table.setItem(row, 2, QTableWidgetItem(str(ratio)))
+            val = self._format_currency(bonus_per_share * ratio)
+            item_val = QTableWidgetItem(val)
+            item_val.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            table.setItem(row, 3, item_val)
+            
+        add_row(0, "Store Manager", count_sm, ratio_sm)
+        add_row(1, "Asst. Store Manager", count_asm, ratio_asm)
+        add_row(2, "Staff", count_staff, ratio_staff)
+        
+        layout.addWidget(table)
+        
+        disclaimer = QLabel("<i>*Nilai di atas hanyalah estimasi perhitungan kotor.</i>")
+        disclaimer.setStyleSheet("color: #7f8c8d; font-size: 10px;")
+        layout.addWidget(disclaimer)
+        
+        btn_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        btn_box.accepted.connect(dlg.accept)
+        layout.addWidget(btn_box)
+        
+        dlg.exec_()

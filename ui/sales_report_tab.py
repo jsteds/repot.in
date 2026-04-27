@@ -145,7 +145,7 @@ class DynamicTableWidget(QWidget):
         header_layout.addWidget(self.label_title)
         
         self.view_selector = QComboBox()
-        self.view_selector.addItems(["Sales by Payment", "Menu Summary", "Sales Per-Hour"])
+        self.view_selector.addItems(["Sales by Payment", "Menu Summary", "Sales Per-Hour (Global)", "Sales Per-Hour (Ouast)", "Sales Per-Hour (Non-Ouast)"])
         self.view_selector.currentIndexChanged.connect(self._on_view_mode_changed)
         header_layout.addWidget(self.view_selector)
 
@@ -218,7 +218,7 @@ class DynamicTableWidget(QWidget):
         cell_val = cell_item.text()
 
         # ── MODE SALES PER-HOUR: klik kolom Jam → drill-down receipt list ──
-        if self.view_selector.currentText() == "Sales Per-Hour" and col == 0:
+        if self.view_selector.currentText().startswith("Sales Per-Hour") and col == 0:
             # Ambil jam dari sel (strip emoji dan spasi)
             import re
             m = re.search(r'(\d{2}):', cell_val)
@@ -509,8 +509,8 @@ class DynamicTableWidget(QWidget):
     def _on_view_mode_changed(self):
         """Kontrol visibilitas period_selector lalu refresh tabel."""
         mode = self.view_selector.currentText()
-        # Mode Sales Per-Hour: period selector tetap aktif (Today/MTD)
-        self.period_selector.setVisible(mode != "Sales Per-Hour")
+        # Mode Sales Per-Hour: period selector disembunyikan
+        self.period_selector.setVisible(not mode.startswith("Sales Per-Hour"))
         self._update_table_view()
 
     def _update_table_view(self):
@@ -531,8 +531,13 @@ class DynamicTableWidget(QWidget):
         period_mode = self.period_selector.currentText()
 
         # ── MODE: SALES PER-HOUR ──────────────────────────────────────────
-        if view_mode == "Sales Per-Hour":
-            self._build_hourly_view()
+        if view_mode.startswith("Sales Per-Hour"):
+            category = "Global"
+            if "Ouast" in view_mode and "Non" not in view_mode:
+                category = "Ouast"
+            elif "Non-Ouast" in view_mode:
+                category = "Non-Ouast"
+            self._build_hourly_view(category=category)
             return
         # ─────────────────────────────────────────────────────────────────
         
@@ -593,12 +598,13 @@ class DynamicTableWidget(QWidget):
         if txt and not "E7" in txt: 
              self._filter_table_rows(txt)
 
-    def _build_hourly_view(self):
+    def _build_hourly_view(self, category="Global"):
         """Render tabel Sales Per-Hour.
         - Jam   : dari raw_transactions_df (Created Time / Created Date)
         - TC    : unique Receipt No per jam (dari raw_payments_df) — sesuai laporan
         - Qty   : sum Quantity per jam (dari raw_transactions_df)
         - Net   : sum Amount / 1.1 per jam (dari raw_payments_df) — sesuai laporan
+        - Avc   : Net / TC
         - Baris TOTAL di bawah. Warna peak-hour otomatis.
         """
         from PyQt5.QtGui import QColor, QFont
@@ -608,14 +614,13 @@ class DynamicTableWidget(QWidget):
         pay_df = self.raw_payments_df
 
         # ── VALIDASI DATA ──────────────────────────────────────────────────────
-        if (trx_df is None or trx_df.empty) and (pay_df is None or pay_df.empty):
+        if (trx_df is None or trx_df.empty):
             self.table.setRowCount(0)
             self.table.setColumnCount(1)
             self.table.setHorizontalHeaderLabels(["Tidak ada data transaksi"])
             return
 
         # ── HELPER: Pencarian kolom case-insensitive ──────────────────────────
-        # Mendukung CSV PascalCase ('Created Time') DAN DB snake_case ('created_time')
         def _find_col(df, *candidates):
             """Return nama kolom pertama yang cocok (case & space insensitive)."""
             cols_norm = {c.lower().replace(' ', '_'): c for c in df.columns}
@@ -645,7 +650,7 @@ class DynamicTableWidget(QWidget):
                 except Exception:
                     pass
 
-            # Strategi 2: Prefix dummy date (robust untuk format HH:MM / HH:MM:SS)
+            # Strategi 2: Prefix dummy date
             if (hour_series is None or hour_series.isna().all()) and time_col:
                 try:
                     time_str = trx_df[time_col].astype(str).str.strip()
@@ -681,7 +686,9 @@ class DynamicTableWidget(QWidget):
         dept_col    = _find_col(trx_df, 'Department Name', 'department_name')
         merch_col   = _find_col(trx_df, 'Merchandise Name', 'merchandise_name')
         art_col     = _find_col(trx_df, 'Article Name', 'article_name')
-        size_col    = merch_col or art_col          # Untuk filter ukuran minuman
+        pgn_col     = _find_col(trx_df, 'Product Group Name', 'product_group_name')
+        cat_col     = _find_col(trx_df, 'Category Name', 'category_name')
+        size_col    = merch_col or art_col          
 
         CHATIME_KWORDS = r'Large|Regular|Small|Pop Can|Extra Large|Gede|Butterfly'
 
@@ -690,11 +697,33 @@ class DynamicTableWidget(QWidget):
         work_trx = work_trx.dropna(subset=['_hour'])
         work_trx['_hour'] = work_trx['_hour'].astype(int)
 
-        # ── SOLD CUP per jam (hanya Chatime drinks, bukan topping/misc) ──────────
+        # ── FILTER BERDASARKAN KATEGORI (Ouast / Non-Ouast) ────────────────────
+        if category != "Global" and (pgn_col or cat_col):
+            # Cek apakah item adalah Ouast
+            ouast_mask = pd.Series([False] * len(work_trx), index=work_trx.index)
+            if pgn_col:
+                ouast_mask = ouast_mask | work_trx[pgn_col].astype(str).str.contains(r'Ouast|K-Food|Korean Street Food', case=False, na=False)
+            if cat_col:
+                ouast_mask = ouast_mask | work_trx[cat_col].astype(str).str.contains(r'Ouast|K-Food|Korean Street Food', case=False, na=False)
+                
+            if category == "Ouast":
+                work_trx = work_trx[ouast_mask]
+            elif category == "Non-Ouast":
+                work_trx = work_trx[~ouast_mask]
+
+        if work_trx.empty:
+            self.table.setRowCount(0)
+            self.table.setColumnCount(1)
+            self.table.setHorizontalHeaderLabels([f"Tidak ada data transaksi untuk kategori {category}"])
+            return
+
+        # ── SOLD CUP per jam ───────────────────────────────────────────────────
         sc_per_hour = {}
         if qty_col:
             work_trx[qty_col] = pd.to_numeric(work_trx[qty_col], errors='coerce').fillna(0)
-            if dept_col:
+            
+            if category == "Global" and dept_col:
+                # Global: Sold Cup = Chatime drinks
                 mask_dept = work_trx[dept_col].astype(str).str.contains('Chatime', case=False, na=False)
                 if size_col:
                     mask_size = work_trx[size_col].astype(str).str.contains(CHATIME_KWORDS, case=False, na=False)
@@ -703,7 +732,7 @@ class DynamicTableWidget(QWidget):
                     sc_mask   = mask_dept
                 sc_per_hour = work_trx.loc[sc_mask].groupby('_hour')[qty_col].sum().to_dict()
             else:
-                # Fallback: semua quantity jika tidak ada info dept
+                # Ouast/Non-Ouast: Qty = total item pada kategori tsb
                 sc_per_hour = work_trx.groupby('_hour')[qty_col].sum().to_dict()
 
         # Mapping receipt_no → jam (ambil jam pertama jika ada duplikasi)
@@ -716,13 +745,17 @@ class DynamicTableWidget(QWidget):
         else:
             receipt_hour_map = {}
 
-        # ── AGGREGATE DARI PAYMENTS (TC & Net Sales) ───────────────────────────
+        # ── AGGREGATE DARI PAYMENTS / TRANSACTIONS ─────────────────────────────
         rcp_col_pay = _find_col(pay_df, 'Receipt No', 'receipt_no', 'Order No', 'order_no') if (pay_df is not None and not pay_df.empty) else None
         amt_col_pay = _find_col(pay_df, 'Amount', 'amount')                                  if (pay_df is not None and not pay_df.empty) else None
 
-        agg = {}  # { hour: {'tc': int, 'qty': int, 'gross': float} }
+        agg = {}  # { hour: {'tc': int, 'sc': int, 'gross': float} }
 
-        if pay_df is not None and not pay_df.empty and rcp_col_pay and receipt_hour_map:
+        # Jika mode spesifik (Ouast/Non-Ouast), KITA WAJIB PAKAI TRANSACTIONS
+        # Karena 1 payment/struk bisa berisi Ouast & Non-Ouast.
+        use_payment = (category == "Global") and (pay_df is not None and not pay_df.empty and rcp_col_pay and receipt_hour_map)
+
+        if use_payment:
             work_pay = pay_df.copy()
             if amt_col_pay:
                 work_pay[amt_col_pay] = pd.to_numeric(work_pay[amt_col_pay], errors='coerce').fillna(0)
@@ -738,9 +771,8 @@ class DynamicTableWidget(QWidget):
                 gross = grp.groupby(rcp_col_pay)[amt_col_pay].sum().sum() if amt_col_pay else 0.0
                 sc    = int(sc_per_hour.get(h, 0))
                 agg[h] = {'tc': tc, 'sc': sc, 'gross': float(gross)}
-
-        # Fallback: tidak ada payment data → pakai transactions saja
-        if not agg and not work_trx.empty:
+        else:
+            # Fallback / Specific Category: pakai transactions
             net_col_trx = _find_col(work_trx, 'Net Price', 'net_price', 'Net_Price')
             if net_col_trx:
                 work_trx[net_col_trx] = pd.to_numeric(work_trx[net_col_trx], errors='coerce').fillna(0)
@@ -769,7 +801,7 @@ class DynamicTableWidget(QWidget):
         total_gross = sum(v['gross'] for v in agg.values())
         total_net   = total_gross / 1.1
 
-        peak_hour   = max(agg, key=lambda h: agg[h]['gross'])
+        peak_hour   = max(agg, key=lambda h: agg[h]['gross']) if total_gross > 0 else list(agg.keys())[0]
         avg_gross   = total_gross / len(agg) if agg else 0
 
         hours_sorted = sorted(agg.keys())
@@ -778,10 +810,12 @@ class DynamicTableWidget(QWidget):
             v   = agg[h]
             net = v['gross'] / 1.1
             pct = (v['gross'] / total_gross * 100) if total_gross > 0 else 0.0
-            data_rows.append((h, v['tc'], v['sc'], net, pct))
+            avc = (net / v['tc']) if v['tc'] > 0 else 0.0
+            data_rows.append((h, v['tc'], v['sc'], net, avc, pct))
 
         # ── RENDER ────────────────────────────────────────────────────────────
-        COLS = ["Jam", "TC", "SC", "Net Sales (Rp)", "% Sales"]
+        qty_header = "SC" if category == "Global" else "Qty"
+        COLS = ["Jam", "TC", qty_header, "Net Sales (Rp)", "Avc", "% Sales"]
         self.table.setRowCount(len(data_rows) + 1)
         self.table.setColumnCount(len(COLS))
         self.table.setHorizontalHeaderLabels(COLS)
@@ -801,7 +835,7 @@ class DynamicTableWidget(QWidget):
         font_bold = QFont(); font_bold.setBold(True)
 
         self.table.setSortingEnabled(False)   # nonaktif selama insert
-        for r, (h, tc, sc, net, pct) in enumerate(data_rows):
+        for r, (h, tc, sc, net, avc, pct) in enumerate(data_rows):
             gross_h = agg[h]['gross']
             if h == peak_hour:
                 bg, fg, is_peak = COLOR_PEAK, FG_PEAK, True
@@ -818,6 +852,7 @@ class DynamicTableWidget(QWidget):
                 (str(tc),         tc * 1.0, Qt.AlignRight),
                 (str(sc),         sc * 1.0, Qt.AlignRight),
                 (fmt_rp(net),     net,      Qt.AlignRight),
+                (fmt_rp(avc),     avc,      Qt.AlignRight),
                 (f"{pct:.1f}%",   pct,      Qt.AlignRight),
             ]
             for c, (text, sort_v, align) in enumerate(cells):
@@ -834,11 +869,13 @@ class DynamicTableWidget(QWidget):
         # Baris TOTAL — pakai sort_value = float('inf') agar selalu di paling bawah
         total_tc  = sum(v['tc']  for v in agg.values())
         total_sc  = sum(v['sc']  for v in agg.values())
+        total_avc = (total_net / total_tc) if total_tc > 0 else 0.0
         total_cells = [
             ("TOTAL",           float('inf'), Qt.AlignLeft),
             (str(total_tc),     float('inf'), Qt.AlignRight),
             (str(total_sc),     float('inf'), Qt.AlignRight),
             (fmt_rp(total_net), float('inf'), Qt.AlignRight),
+            (fmt_rp(total_avc), float('inf'), Qt.AlignRight),
             ("100.0%",          float('inf'), Qt.AlignRight),
         ]
         for c, (text, sort_v, align) in enumerate(total_cells):

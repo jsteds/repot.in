@@ -580,22 +580,23 @@ class MainDashboardUI(QWidget):
 
         # Sidebar Buttons
         self.all_nav_buttons = [] # Track all button instances
-        self.btn_dashboard = self._create_nav_button("Dashboard", "★", checked=True)
-        self.btn_sales_report = self._create_nav_button("Sales Report", "📊")
+        self.btn_dashboard = self._create_nav_button("Dashboard", "📊", checked=True)
+        self.btn_sales_report = self._create_nav_button("Sales Report", "📈")
         self.btn_bscd = self._create_nav_button("BSCD", "📋")
-        self.btn_kas = self._create_nav_button("Kas & Tips", "💰")
+        self.btn_kas = self._create_nav_button("Kas && Tips", "💰")
         self.btn_order = self._create_nav_button("Order Barang", "📦")
-        self.btn_inuse = self._create_nav_button("In-Use", "🏷")
-        self.btn_waste = self._create_nav_button("Konversi Waste", "♻")
-        self.btn_edspayed = self._create_nav_button("Edspayed", "🕒")
-        self.btn_minum = self._create_nav_button("Minum", "💧")
+        self.btn_inuse = self._create_nav_button("In-Use", "♻️")
+        self.btn_waste = self._create_nav_button("Konversi Waste", "🗑️")
+        self.btn_edspayed = self._create_nav_button("Edspayed", "💳")
+        self.btn_minum = self._create_nav_button("Minum", "🥤")
+        self.btn_bpk = self._create_nav_button("BPK (Petty Cash)", "🧾")
         
-        self.btn_import = self._create_nav_button("Import CSV", "📁")
-        self.btn_sync_aurora = self._create_nav_button("Sync Aurora", "☁")
-        self.btn_db = self._create_nav_button("Database", "🗄")
+        self.btn_import = self._create_nav_button("Import CSV", "📥")
+        self.btn_sync_aurora = self._create_nav_button("Sync Aurora", "🔄")
+        self.btn_db = self._create_nav_button("Database", "🗄️")
         #self.btn_tools = self._create_nav_button("Tools", "🔧")
-        self.btn_todo = self._create_nav_button("Todo List", "✅")
-        self.btn_notes = self._create_nav_button("Notes", "📝")
+        self.btn_todo = self._create_nav_button("Todo List", "📝")
+        self.btn_notes = self._create_nav_button("Notes", "📓")
 
         # Grouping buttons visually
         lbl_menu = QLabel(" MAIN MENU")
@@ -615,6 +616,7 @@ class MainDashboardUI(QWidget):
         sidebar_layout.addWidget(self.btn_waste)
         sidebar_layout.addWidget(self.btn_edspayed)
         sidebar_layout.addWidget(self.btn_minum)
+        sidebar_layout.addWidget(self.btn_bpk)
         
         sidebar_layout.addSpacing(10)
         lbl_system = QLabel(" SYSTEM")
@@ -692,15 +694,17 @@ class MainDashboardUI(QWidget):
         self.report_buttons = [
             self.btn_sales_report, self.btn_bscd, self.btn_kas, 
             self.btn_order, self.btn_inuse, self.btn_waste, self.btn_edspayed,
-            self.btn_minum
+            self.btn_minum, self.btn_bpk
         ]
 
-    def _create_nav_button(self, text, icon_str, checked=False):
-        btn = QPushButton(f" {icon_str}   {text}")
-        btn.setObjectName(f"nav_btn_{text.lower().replace(' ', '_')}")
+    def _create_nav_button(self, text, icon_str="", checked=False):
+        btn_text = f" {text}" # Teks penuh tanpa ikon untuk mode expand
+        btn = QPushButton(btn_text)
+        btn.setObjectName(f"nav_btn_{text.lower().replace(' ', '_').replace('&', '')}")
         btn.setProperty("class", "sidebar_btn")
-        btn.setProperty("icon_str", f" {icon_str} ")
-        btn.setProperty("full_text", f" {icon_str}   {text}")
+        btn.setProperty("icon_str", f" {icon_str} " if icon_str else "")
+        btn.setProperty("full_text", btn_text)
+        btn.setProperty("tab_name", text)
         btn.setCheckable(True)
         if checked:
             btn.setChecked(True)

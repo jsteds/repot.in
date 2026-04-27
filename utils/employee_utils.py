@@ -101,7 +101,7 @@ class EmployeeDB:
             cursor = conn.cursor()
             pass_hash = hashlib.sha256(password.encode()).hexdigest()
             cursor.execute("INSERT INTO employees (nik, nama_lengkap, jabatan, password_hash, role_aplikasi, join_date) VALUES (?, ?, ?, ?, ?, ?)",
-                           (nik, nama, jabatan, pass_hash, role, join_date))
+                           (nik, nama.upper(), jabatan, pass_hash, role, join_date))
             conn.commit()
             return True
         except sqlite3.IntegrityError:
@@ -116,10 +116,10 @@ class EmployeeDB:
             if new_password:
                 pass_hash = hashlib.sha256(new_password.encode()).hexdigest()
                 cursor.execute("UPDATE employees SET nik=?, nama_lengkap=?, jabatan=?, role_aplikasi=?, join_date=?, password_hash=? WHERE id=?",
-                               (nik, nama, jabatan, role, join_date, pass_hash, emp_id))
+                               (nik, nama.upper(), jabatan, role, join_date, pass_hash, emp_id))
             else:
                 cursor.execute("UPDATE employees SET nik=?, nama_lengkap=?, jabatan=?, role_aplikasi=?, join_date=? WHERE id=?",
-                               (nik, nama, jabatan, role, join_date, emp_id))
+                               (nik, nama.upper(), jabatan, role, join_date, emp_id))
             conn.commit()
             return True
         except sqlite3.IntegrityError:

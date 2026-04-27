@@ -1,6 +1,6 @@
 {
-  "latest_version": "5.0.6",
-  "release_notes": " - Add Waste Budget to Waste Conversion. \n - Add Sales Per-Hour to Detail Table. \n - Fix Known bugs. \n - Masih ada bug update pada v5.0.5, jika setelah update dan restart muncul error, silakan klik OK saja lalu buka aplikasi secara manual.",
+  "latest_version": "5.1.0",
+  "release_notes": " - Major optimation on UI/UX. \n - Add BPK Generator, u can now easily create BPK and maintain init. \n - Dashboard optimation \n - Feedback and sugestion form, please use it in case u found any bug or just wanna req more feature.",
   "download_url": "https://drive.google.com/drive/folders/1rwyOpgKzgOpoJvAG-b0yPxETG09O81ma?usp=sharing",
-  "download_file_id": "1h_GHjdNmKVcmcgAdofGW35copDpv-QAh"
+  "download_file_id": "1A1rhiS2g0It70tqgsreP4ZdG8MMoWz-d"
 }

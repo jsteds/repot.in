@@ -55,6 +55,7 @@ from ui.notes_dialog import NotesDialog
 from ui.downloader_dialog import DownloaderDialog, FileDownloadWorker
 from modules.workers import FileWorker, HistoricalDataWorker, GoogleSheetWorker, VersionWorker, CsvImportWorker
 from ui.minum_tab import MinumTab
+from ui.bpk_tab import BPKTab
 
 # --- [FIX CRITICAL] HAPUS SalesReportTab DARI SINI AGAR TIDAK MENIMPA YANG DI ATAS ---
 from ui.ui_components import (
@@ -373,18 +374,9 @@ class ReportingApp(QMainWindow):
 
         # --- [MENU BARU: PENGATURAN] ---
         settings_menu = self.menu_bar.addMenu("&Settings")
-        tab_vis_menu = settings_menu.addMenu("Visibilitas Tab Laporan")
-        
+        self.tab_vis_menu = settings_menu.addMenu("Visibilitas Tab Laporan")
         self.tab_visibility_actions = {}
-        tab_names = ["BSCD", "Kas & Tips", "Order Barang", "In-Use", "Konversi Waste", "Edspayed", "Minum"]
-        
-        for name in tab_names:
-            action = QAction(name, self, checkable=True)
-            is_vis = self.config_manager.get_tab_visibility(name)
-            action.setChecked(is_vis)
-            action.toggled.connect(lambda checked, n=name: self._toggle_tab_visibility(n, checked))
-            tab_vis_menu.addAction(action)
-            self.tab_visibility_actions[name] = action
+        # Menu items will be populated dynamically in _init_main_view
         # -------------------------------------------------
 
         help_menu = self.menu_bar.addMenu("&Bantuan")
@@ -402,22 +394,22 @@ class ReportingApp(QMainWindow):
         changelog_action.setStatusTip("Lihat riwayat pembaruan aplikasi")
         changelog_action.triggered.connect(self._show_changelog_dialog)
         help_menu.addAction(changelog_action)
+        
+        help_menu.addSeparator()
+        feedback_action = QAction("Kirim Feedback / Lapor Bug...", self)
+        feedback_action.setStatusTip("Kirim laporan bug, saran, atau request fitur ke developer via WhatsApp")
+        feedback_action.triggered.connect(self._show_feedback_dialog)
+        help_menu.addAction(feedback_action)
     
     def _toggle_tab_visibility(self, tab_id, is_visible):
         self.config_manager.set_tab_visibility(tab_id, is_visible)
-        
-        if hasattr(self, 'main_dashboard_ui') and self.main_dashboard_ui:
-            btn_map = {
-                "BSCD": self.main_dashboard_ui.btn_bscd,
-                "Kas & Tips": self.main_dashboard_ui.btn_kas,
-                "Order Barang": self.main_dashboard_ui.btn_order,
-                "In-Use": self.main_dashboard_ui.btn_inuse,
-                "Konversi Waste": self.main_dashboard_ui.btn_waste,
-                "Edspayed": self.main_dashboard_ui.btn_edspayed,
-                "Minum": self.main_dashboard_ui.btn_minum
-            }
-            if tab_id in btn_map:
-                btn_map[tab_id].setVisible(is_visible)
+        if hasattr(self, '_dynamic_btn_map') and tab_id in self._dynamic_btn_map:
+            self._dynamic_btn_map[tab_id].setVisible(is_visible)
+
+    def _show_feedback_dialog(self):
+        from ui.feedback_dialog import FeedbackDialog
+        dlg = FeedbackDialog(self.config_manager, self)
+        dlg.exec_()
 
     def _show_calculator(self):
         if self.calculator_dialog is None or not self.calculator_dialog.isVisible():
@@ -541,19 +533,31 @@ class ReportingApp(QMainWindow):
         self.edspayed_idx = self.main_dashboard_ui.main_stack.addWidget(self.edspayed_tab_ui) # Index 7
         self.minum_tab = MinumTab(self)
         self.minum_idx = self.main_dashboard_ui.main_stack.addWidget(self.minum_tab) # Index 8
+        self.bpk_tab = BPKTab(self.config_manager, self)
+        self.bpk_idx = self.main_dashboard_ui.main_stack.addWidget(self.bpk_tab) # Index 9
 
-        # --- Apply visibility based on config ---
-        btn_map = {
-            "BSCD": self.main_dashboard_ui.btn_bscd,
-            "Kas & Tips": self.main_dashboard_ui.btn_kas,
-            "Order Barang": self.main_dashboard_ui.btn_order,
-            "In-Use": self.main_dashboard_ui.btn_inuse,
-            "Konversi Waste": self.main_dashboard_ui.btn_waste,
-            "Edspayed": self.main_dashboard_ui.btn_edspayed,
-            "Minum": self.main_dashboard_ui.btn_minum
-        }
-        for name, btn in btn_map.items():
-            btn.setVisible(self.config_manager.get_tab_visibility(name))
+        # --- Apply visibility based on config & Populate Settings Menu dynamically ---
+        self._dynamic_btn_map = {}
+        self.tab_vis_menu.clear()
+        self.tab_visibility_actions.clear()
+        
+        for btn in self.main_dashboard_ui.report_buttons:
+            name = btn.property("tab_name")
+            if not name: continue
+            
+            # 1. Register to dynamic map
+            self._dynamic_btn_map[name] = btn
+            
+            # 2. Set visibility according to config
+            is_vis = self.config_manager.get_tab_visibility(name)
+            btn.setVisible(is_vis)
+            
+            # 3. Create menu action
+            action = QAction(name.replace('&', '&&'), self, checkable=True)
+            action.setChecked(is_vis)
+            action.toggled.connect(lambda checked, n=name: self._toggle_tab_visibility(n, checked))
+            self.tab_vis_menu.addAction(action)
+            self.tab_visibility_actions[name] = action
         # ----------------------------------------
 
         # Tombol report di sidebar sekarang aktif dari awal sesuai request user
@@ -602,6 +606,7 @@ class ReportingApp(QMainWindow):
             self.main_dashboard_ui.btn_waste: self.waste_idx,
             self.main_dashboard_ui.btn_edspayed: self.edspayed_idx,
             self.main_dashboard_ui.btn_minum: self.minum_idx,
+            self.main_dashboard_ui.btn_bpk: self.bpk_idx
         }
         self.main_dashboard_ui.nav_index_requested.connect(self._handle_nav_change)
         
@@ -1823,15 +1828,41 @@ class ReportingApp(QMainWindow):
         
         # Konten Log (HTML Format)
         html_content = """
-        <h2 style="color: #2980b9;">Repot.in - Versi 5.0.7</h2>
-<p><b>Status:</b> Patch Update<br><b>Tanggal:</b> 23 April 2026</p>
+        <h2 style="color: #2980b9;">Repot.in - Versi 5.1.0</h2>
+<p><b>Status:</b> minor Update<br><b>Tanggal:</b> 27 April 2026</p>
 <hr>
+
+<h3 style="color: #e67e22;">🚀 Fitur dan Optimasi </h3>
+<ul>
+    <li><b>Petty Cash (BPK):</b> Penambahan fitur untuk membuat/generate BPK.</li>
+    <li><b>Sidebar Menu</b> Optimasi tampilan sidebar menu</li>
+    <li><b>Dashboard:</b> Penambahan KPI card Productivity.</li>
+    <li><b>Dashboard:</b> Penambahan prakiraan bonus jika mencapai target.</li>
+    <li><b>Dashboard:</b> Optimasi peak hour analysis dan add comparation card.</li>
+    <li><b>Sales Report:</b> Penambahan sales per-hour OUAST dan Non-OUAST.</li>
+    <li><b>Menu bar:</b> Add feedback and sugestions forms.</li>
+    <li><b>Sync Aurora:</b> Sekarang sesion awal Aurora akan disimpan sampai aplikasi ditutup, sehingga akan mempercepat proses pengambilan data dari Aurora.</li>
+</ul>
+
+<h3 style="color: #c0392b;">🐞 Bug Fixes</h3>
+<ul>
+    <li><b>Sales Report:</b> Fix known bugs.</li>
+</ul>
+        <h2 style="color: #2980b9;">Repot.in - Versi 5.0.7</h2>
+<p><b>Status:</b> Patch Update<br><b>Tanggal:</b> 24 April 2026</p>
+<hr>
+
+<h3 style="color: #e67e22;">🚀 Fitur dan Optimasi </h3>
+<ul>
+    <li><b>Minum:</b> Penambahan fitur untuk mencatat pembelian air minum galon.</li>
+    <li><b>Ui/Layout:</b> Penambahan menu bar Settings untuk Show/Hide Tabs.</li>
+</ul>
 
 <h3 style="color: #c0392b;">🐞 Bugs n Urgent Fixes</h3>
 <ul>
     <li><b>Sales Report:</b> Fix error mengupload CSV dan mengambil data dari Aurora, ini dikarenakan terdapat penyesuaian format data yang digunakan (output) sistem Aurora.</li>
-    <li><b>Sales Report:</b> Fix Detail tabel pada deatil receipt, semua informasi sudah lengkap ditampilkan.</li>
-    <li><b>Dashboard:</b> FIx ukuran grafik sales Instore vs Ojol yang tidak proporsional.</li>
+    <li><b>Sales Report:</b> Fix Detail tabel pada detail receipt, semua informasi sudah lengkap ditampilkan.</li>
+    <li><b>Dashboard:</b> Fix ukuran grafik sales Instore vs Ojol yang tidak proporsional.</li>
 </ul>
 
         <h2 style="color: #2980b9;">Repot.in - Versi 5.0.6</h2>
@@ -3076,7 +3107,38 @@ if __name__ == '__main__':
         app.processEvents()
         time.sleep(0.01)
 
-    splash.showMessage("Memuat konfigurasi dan aset...")
+    splash.showMessage("Memverifikasi kelengkapan aset...")
+    from modules.asset_manager import StartupAssetWorker
+    asset_worker = StartupAssetWorker()
+    asset_downloading = True
+    
+    def on_progress(pct, msg):
+        splash.showMessage(f"{msg} ({pct}%)")
+        
+    def on_finished(success, msg):
+        # We need to modify a mutable or use a trick for nonlocal
+        pass # defined below
+        
+    def on_finished_handler(success, msg):
+        global asset_downloading_flag
+        asset_downloading_flag = False
+        if success:
+            splash.showMessage("Aset tervalidasi.")
+        else:
+            splash.showMessage(msg)
+            
+    global asset_downloading_flag
+    asset_downloading_flag = True
+    
+    asset_worker.progress.connect(on_progress)
+    asset_worker.finished.connect(on_finished_handler)
+    asset_worker.start()
+    
+    while asset_downloading_flag:
+        app.processEvents()
+        time.sleep(0.05)
+
+    splash.showMessage("Memuat konfigurasi dan aplikasi...")
     for _ in range(10):
         app.processEvents()
 

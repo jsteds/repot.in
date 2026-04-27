@@ -109,6 +109,20 @@ class DatabaseManager:
         except sqlite3.OperationalError:
             pass
         
+        # 10. BPK HISTORY
+        cursor.execute('''CREATE TABLE IF NOT EXISTS bpk_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            store_code TEXT,
+            tanggal TEXT,
+            dokumen_no TEXT,
+            rek_lawan TEXT,
+            uraian TEXT,
+            nominal REAL,
+            pdf_path TEXT,
+            status TEXT DEFAULT 'Store',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        
         conn.commit()
         conn.close()
 
@@ -694,7 +708,24 @@ class DatabaseManager:
                 
             # 1. Peak Hour (Created Time vs Net Sales & Transaction Count for Period)
             query_peak = f"""
-                SELECT substr(created_time, 1, 2) as hour, sum(net_price) as sales, count(DISTINCT receipt_no) as tc
+                SELECT 
+                    substr(created_time, 1, 2) as hour, 
+                    sum(net_price) as sales, 
+                    count(DISTINCT receipt_no) as tc,
+                    SUM(CASE 
+                        WHEN product_group_name LIKE '%Ouast%' 
+                          OR product_group_name LIKE '%K-Food%' 
+                          OR product_group_name LIKE '%Korean Street Food%' 
+                          OR category_name LIKE '%Ouast%' 
+                          OR category_name LIKE '%Korean Street Food%' 
+                        THEN net_price ELSE 0 END) as sales_ouast,
+                    SUM(CASE 
+                        WHEN product_group_name NOT LIKE '%Ouast%' 
+                         AND product_group_name NOT LIKE '%K-Food%' 
+                         AND product_group_name NOT LIKE '%Korean Street Food%' 
+                         AND category_name NOT LIKE '%Ouast%' 
+                         AND category_name NOT LIKE '%Korean Street Food%' 
+                        THEN net_price ELSE 0 END) as sales_non_ouast
                 FROM raw_transactions
                 WHERE created_date BETWEEN ? AND ? AND is_void = 0 {site_filter}
                 GROUP BY hour
@@ -848,5 +879,66 @@ class DatabaseManager:
         except Exception as e:
             logging.error(f"Failed to fetch dashboard metrics: {e}")
             return metrics
+        finally:
+            conn.close()
+
+    # ==========================================
+    # BPK HISTORY METHODS
+    # ==========================================
+    def save_bpk_history(self, store_code, tanggal, dokumen_no, rek_lawan, uraian, nominal, pdf_path):
+        conn = self.get_connection()
+        if not conn: return False
+        try:
+            conn.cursor().execute('''
+                INSERT INTO bpk_history (store_code, tanggal, dokumen_no, rek_lawan, uraian, nominal, pdf_path, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Store')
+            ''', (store_code, tanggal, dokumen_no, rek_lawan, uraian, nominal, pdf_path))
+            conn.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to save BPK history: {e}")
+            return False
+        finally:
+            conn.close()
+            
+    def get_bpk_history(self, store_code=None):
+        conn = self.get_connection()
+        if not conn: return []
+        try:
+            cursor = conn.cursor()
+            if store_code:
+                cursor.execute("SELECT * FROM bpk_history WHERE store_code = ? ORDER BY created_at DESC", (store_code,))
+            else:
+                cursor.execute("SELECT * FROM bpk_history ORDER BY created_at DESC")
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logging.error(f"Failed to get BPK history: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def update_bpk_status(self, bpk_id, status):
+        conn = self.get_connection()
+        if not conn: return False
+        try:
+            conn.cursor().execute("UPDATE bpk_history SET status = ? WHERE id = ?", (status, bpk_id))
+            conn.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to update BPK status: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def delete_bpk_history(self, bpk_id):
+        conn = self.get_connection()
+        if not conn: return False
+        try:
+            conn.cursor().execute("DELETE FROM bpk_history WHERE id = ?", (bpk_id,))
+            conn.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to delete BPK history: {e}")
+            return False
         finally:
             conn.close()

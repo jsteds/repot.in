@@ -10,6 +10,16 @@ from PyQt5.QtCore import QObject, pyqtSignal, QUrl, QTimer, Qt
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineProfile, QWebEnginePage
 from utils.constants import BASE_DIR
 
+# ---------------------------------------------------------------------------
+# In‑memory cache for Aurora authentication token and related data.
+# This allows subsequent AuroraScraper instances (within the same process)
+# to reuse the previously acquired token and cookies, avoiding repeated SSO
+# logins and speeding up the sync operation.
+# ---------------------------------------------------------------------------
+_cached_auth_token = None  # type: str | None
+_cached_cookies = {}       # type: dict[str, str]
+_cached_site_code = None   # type: str | None
+
 class AuroraWebPage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
         logging.info(f"Aurora JS Console [{lineNumber}]: {message}")
@@ -107,6 +117,23 @@ class AuroraScraper(QObject):
         self.profile.scripts().insert(script)
         
     def start(self):
+        # If we already have a cached token (and optionally site code), skip the SSO flow.
+        global _cached_auth_token, _cached_cookies, _cached_site_code
+        if _cached_auth_token:
+            self.progress.emit("(0/3) Menggunakan token Aurora yang tersimpan...")
+            logging.info("[AuroraScraper] Reusing cached auth token for sync.")
+            # Populate instance fields so downstream code works unchanged.
+            self.auth_token = _cached_auth_token
+            self.auth_cookies = _cached_cookies
+            # Use cached site code if present; otherwise fallback to provided target_site_code.
+            site_code = _cached_site_code if _cached_site_code else self.target_site_code
+            # Directly start the download phase.
+            self._download_reports(_cached_auth_token, site_code)
+            # Ensure timeout is still active in case downloads hang.
+            self.timeout_timer.start(300000)  # 5 menit
+            return
+
+        # No cached token – perform full login flow.
         self.progress.emit("Membuka halaman login Aurora...")
         logging.info(f"[AuroraScraper] Memulai proses sync Aurora untuk rentang {self.start_date} - {self.end_date}")
         self.view.load(QUrl("https://aurora.klgsys.com"))
@@ -321,6 +348,13 @@ class AuroraScraper(QObject):
             logging.info(f"[AuroraScraper] Company: {company_code} - {company_desc}")
             logging.info(f"[AuroraScraper] Browser cookies: {len(self.auth_cookies)} collected")
             logging.info(f"[AuroraScraper] Storage keys: {all_keys}")
+
+            # Cache successful auth details for future runs within the same process.
+            global _cached_auth_token, _cached_cookies, _cached_site_code
+            if auth_token:
+                _cached_auth_token = auth_token
+            _cached_cookies = self.auth_cookies.copy()
+            _cached_site_code = site_code
             
             if not auth_token and not self.auth_cookies:
                 if not self._finished_emitted:
