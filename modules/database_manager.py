@@ -882,6 +882,91 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    def get_hourly_comparison_metrics(self, date1_str, date2_str, cutoff_time_str, site_code=None):
+        """
+        Ambil metrik Sales, TC, AC, Large, Ouast untuk dua tanggal
+        dengan batas waktu tepat: created_time <= cutoff_time_str (format 'HH:MM').
+        
+        Args:
+            date1_str: Tanggal periode saat ini (YYYY-MM-DD)
+            date2_str: Tanggal periode pembanding (YYYY-MM-DD)
+            cutoff_time_str: Batas waktu, misal '14:00' → filter created_time <= '14:00'
+            site_code: Kode toko (opsional)
+        
+        Returns:
+            dict: {'current': {sales, tc, ac, large, ouast}, 'compare': {...}}
+        """
+        conn = self.get_connection()
+        if not conn:
+            return {'current': None, 'compare': None}
+        
+        empty_metrics = {'sales': 0, 'tc': 0, 'ac': 0, 'large': 0, 'ouast': 0}
+        
+        try:
+            cursor = conn.cursor()
+            site_filter = " AND site_code = ?" if site_code else ""
+            
+            def fetch_metrics_for_date(date_str):
+                """Query metrik untuk satu tanggal dengan cutoff waktu."""
+                params = [date_str, cutoff_time_str]
+                if site_code:
+                    params.append(site_code)
+                
+                # Sales & TC
+                cursor.execute(f"""
+                    SELECT 
+                        SUM(net_price) as gross_sales,
+                        COUNT(DISTINCT receipt_no) as tc,
+                        SUM(CASE 
+                            WHEN article_name LIKE '%(L)%' THEN quantity 
+                            ELSE 0 
+                        END) as large_qty,
+                        SUM(CASE 
+                            WHEN product_group_name LIKE '%Ouast%'
+                              OR product_group_name LIKE '%K-Food%'
+                              OR product_group_name LIKE '%Korean Street Food%'
+                              OR category_name LIKE '%Ouast%'
+                              OR category_name LIKE '%Korean Street Food%'
+                            THEN net_price ELSE 0 
+                        END) as ouast_sales
+                    FROM raw_transactions
+                    WHERE created_date = ?
+                      AND substr(created_time, 1, 5) <= ?
+                      AND is_void = 0
+                      {site_filter}
+                """, params)
+                
+                row = cursor.fetchone()
+                if row:
+                    gross = row['gross_sales'] or 0
+                    nett = gross / 1.1
+                    tc = row['tc'] or 0
+                    ac = nett / tc if tc > 0 else 0
+                    large = row['large_qty'] or 0
+                    ouast = (row['ouast_sales'] or 0) / 1.1
+                    return {
+                        'sales': nett,
+                        'tc': tc,
+                        'ac': ac,
+                        'large': large,
+                        'ouast': ouast
+                    }
+                return dict(empty_metrics)
+            
+            current_data = fetch_metrics_for_date(date1_str)
+            compare_data = fetch_metrics_for_date(date2_str)
+            
+            return {
+                'current': current_data,
+                'compare': compare_data
+            }
+            
+        except Exception as e:
+            logging.error(f"get_hourly_comparison_metrics error: {e}", exc_info=True)
+            return {'current': dict(empty_metrics), 'compare': dict(empty_metrics)}
+        finally:
+            conn.close()
+
     # ==========================================
     # BPK HISTORY METHODS
     # ==========================================

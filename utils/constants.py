@@ -37,6 +37,9 @@ WASTE_RECIPES_FILE = os.path.join(BASE_DIR, 'config', 'waste_recipes.json')
 TODO_FILE_PATH = os.path.join(BASE_DIR, 'data', 'todos.json')
 NOTES_FILE_PATH = os.path.join(BASE_DIR, 'data', 'notes.json')
 MINUM_DATA_FILE = os.path.join(BASE_DIR, 'data', 'minum_data.json')
+FEEDBACK_QUEUE_FILE = os.path.join(BASE_DIR, 'data', 'feedback_queue.json')
+FEEDBACK_SHEET_URL = "https://script.google.com/macros/s/AKfycbyhQn4MCnmopkhgnLmxrtCcQqjPouESYAqYOiDXq4fASwBnvEh_kLaTohkpKA_rkEEA/exec"
+
 
 # --- [DOWNLOADER] ID file manifest.json di Google Drive ---
 # Langkah: Upload manifest.json ke Google Drive → Share (Anyone with link) →
@@ -75,7 +78,7 @@ SITE_LIST_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZfbICmtpc1dfO
 
 # --- [UBAH: Update Versi Aplikasi] ---
 VERSION_URL = "https://drive.google.com/uc?export=download&id=1Jy7_CodkCJu4wCCo-6lu3D3OTCwrwT5o"
-APP_VERSION = "5.1.0"
+APP_VERSION = "5.1.1"
 # ---------------------------------------------------
 
 # MOP Codes

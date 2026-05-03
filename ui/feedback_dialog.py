@@ -1,97 +1,119 @@
 # ui/feedback_dialog.py
 """
 Dialog Feedback & Bug Report
-Memungkinkan user mengirim laporan bug, saran, atau request fitur langsung
-ke developer via WhatsApp dengan pesan yang ter-format otomatis.
+Mengirim laporan bug, saran, atau request fitur langsung ke Google Sheets
+melalui Google Apps Script Web App.  Jika offline, data disimpan lokal
+dan di-upload otomatis saat startup berikutnya.
 """
 import logging
-from datetime import datetime
-from urllib.parse import quote
-
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
     QPushButton, QComboBox, QLineEdit, QFormLayout, QFrame,
-    QMessageBox, QSizePolicy
+    QMessageBox, QSizePolicy, QProgressBar
 )
-from PyQt5.QtCore import Qt, QUrl
-from PyQt5.QtGui import QFont, QDesktopServices
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
 
-from utils.constants import APP_VERSION
+from utils.constants import APP_VERSION, FEEDBACK_SHEET_URL
+
+logger = logging.getLogger(__name__)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Worker thread — kirim HTTP POST di background agar UI tidak freeze
+# ──────────────────────────────────────────────────────────────────────────────
+class _SubmitWorker(QThread):
+    done = pyqtSignal(bool)   # True = berhasil online, False = disimpan lokal
+
+    def __init__(self, payload: dict, sheet_url: str):
+        super().__init__()
+        self.payload   = payload
+        self.sheet_url = sheet_url
+
+    def run(self):
+        from modules.feedback_manager import submit_feedback
+        ok = submit_feedback(self.payload, self.sheet_url)
+        self.done.emit(ok)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dialog utama
+# ──────────────────────────────────────────────────────────────────────────────
 class FeedbackDialog(QDialog):
     """
-    Dialog untuk mengirim feedback, laporan bug, atau request fitur.
-    Pesan akan dikirim via WhatsApp ke nomor developer yang dikonfigurasi.
+    Form feedback yang mengirim langsung ke Google Sheets.
+    Jika koneksi bermasalah, data tersimpan lokal dan di-upload otomatis
+    saat startup aplikasi berikutnya.
     """
 
-    FEEDBACK_TYPES = {
-        "Laporan Bug": "BUG REPORT",
-        "Saran / Masukan": "SARAN",
-        "Request Fitur Baru": "REQUEST FITUR",
-        "Pertanyaan": "PERTANYAAN",
-    }
+    FEEDBACK_TYPES = [
+        "Laporan Bug",
+        "Saran / Masukan",
+        "Request Fitur Baru",
+        "Pertanyaan",
+    ]
 
     def __init__(self, config_manager, parent=None):
         super().__init__(parent)
         self.config_manager = config_manager
         self.setWindowTitle("Kirim Feedback ke Developer")
-        self.setMinimumWidth(520)
-        self.setMinimumHeight(420)
+        self.setMinimumWidth(540)
+        self.setMinimumHeight(450)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-        # Ambil info toko dari config
-        config_data = self.config_manager.get_config()
-        self.site_code = config_data.get('site_code', '-')
+        cfg = self.config_manager.get_config()
+        self.site_code  = cfg.get("site_code", "-")
         self.store_name = self.config_manager.get_store_name(self.site_code)
-        self.dev_wa = config_data.get('dev_whatsapp', '').strip()
+        # URL sudah di-compile ke dalam aplikasi — tidak perlu konfigurasi user
+        self.sheet_url  = FEEDBACK_SHEET_URL
 
+        self._worker = None
         self._init_ui()
 
+    # ── UI ────────────────────────────────────────────────────────────────────
     def _init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(20, 16, 20, 16)
+        root = QVBoxLayout(self)
+        root.setSpacing(12)
+        root.setContentsMargins(22, 18, 22, 18)
 
-        # --- Header ---
-        header = QLabel("Kirim Pesan ke Developer")
-        header.setFont(QFont("Segoe UI", 13, QFont.Bold))
-        layout.addWidget(header)
+        # Header
+        hdr = QLabel("Kirim Feedback ke Developer")
+        hdr.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        root.addWidget(hdr)
 
         sub = QLabel(
-            "Menemukan bug? Punya saran? Atau mau request fitur?\n"
-            "Isi form di bawah, dan pesan akan langsung dikirim via WhatsApp."
+            "Temukan bug? Punya saran? Atau ingin request fitur?\n"
+            "Isi form di bawah. Data akan langsung tersimpan ke spreadsheet developer."
         )
         sub.setWordWrap(True)
         sub.setStyleSheet("color: #888; font-size: 11px;")
-        layout.addWidget(sub)
+        root.addWidget(sub)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(sep)
+        root.addWidget(sep)
 
-        # --- Form ---
+        # Form
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignRight)
         form.setSpacing(10)
 
-        # Info toko (read-only)
+        # Toko (read-only)
         self.lbl_store = QLineEdit(f"{self.site_code} — {self.store_name}")
         self.lbl_store.setReadOnly(True)
         self.lbl_store.setStyleSheet("background: transparent; border: none; font-weight: bold;")
         form.addRow("Toko:", self.lbl_store)
 
-        # Tipe feedback
+        # Jenis
         self.combo_type = QComboBox()
-        for label in self.FEEDBACK_TYPES:
-            self.combo_type.addItem(label)
+        self.combo_type.addItems(self.FEEDBACK_TYPES)
         form.addRow("Jenis:", self.combo_type)
 
-        # Judul singkat
+        # Judul
         self.input_title = QLineEdit()
         self.input_title.setPlaceholderText("Ringkasan singkat (opsional)")
-        self.input_title.setMaxLength(80)
+        self.input_title.setMaxLength(100)
         form.addRow("Judul:", self.input_title)
 
         # Deskripsi
@@ -99,98 +121,103 @@ class FeedbackDialog(QDialog):
         self.input_desc.setPlaceholderText(
             "Jelaskan secara detail:\n"
             "• Apa yang terjadi / yang diinginkan?\n"
-            "• Langkah-langkah untuk mereproduksi bug (jika ada)\n"
+            "• Langkah untuk mereproduksi bug (jika ada)\n"
             "• Dampak terhadap operasional"
         )
-        self.input_desc.setMinimumHeight(130)
+        self.input_desc.setMinimumHeight(140)
         self.input_desc.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         form.addRow("Deskripsi:", self.input_desc)
 
-        layout.addLayout(form)
+        root.addLayout(form)
 
-        # --- Nomor WA Developer ---
-        if not self.dev_wa:
-            warn = QLabel(
-                "⚠️  Nomor WhatsApp developer belum dikonfigurasi.\n"
-                "   Hubungi developer untuk mengisi 'dev_whatsapp' di pengaturan."
-            )
-            warn.setStyleSheet("color: #e67e22; font-size: 11px;")
-            warn.setWordWrap(True)
-            layout.addWidget(warn)
+        # Progress bar (tersembunyi sampai submit)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)   # indeterminate
+        self.progress.setFixedHeight(4)
+        self.progress.setTextVisible(False)
+        self.progress.setVisible(False)
+        self.progress.setStyleSheet(
+            "QProgressBar { border: none; background: #e0e0e0; }"
+            "QProgressBar::chunk { background: #2980b9; }"
+        )
+        root.addWidget(self.progress)
 
-        # --- Buttons ---
-        btn_layout = QHBoxLayout()
+        # Status label
+        self.lbl_status = QLabel("")
+        self.lbl_status.setStyleSheet("font-size: 11px; color: #555;")
+        self.lbl_status.setAlignment(Qt.AlignCenter)
+        root.addWidget(self.lbl_status)
+
+        # Tombol
+        btn_row = QHBoxLayout()
 
         self.btn_cancel = QPushButton("Batal")
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_cancel.setFixedWidth(90)
 
-        self.btn_send = QPushButton("Kirim via WhatsApp")
+        self.btn_send = QPushButton("📤  Kirim Feedback")
         self.btn_send.setDefault(True)
-        self.btn_send.clicked.connect(self._send_feedback)
-        self.btn_send.setEnabled(bool(self.dev_wa))
+        self.btn_send.clicked.connect(self._on_send)
         self.btn_send.setStyleSheet("""
             QPushButton {
-                background-color: #25D366; color: white;
-                border: none; border-radius: 5px;
-                padding: 8px 18px; font-weight: bold; font-size: 12px;
+                background-color: #2980b9; color: white;
+                border: none; border-radius: 6px;
+                padding: 8px 22px; font-weight: bold; font-size: 12px;
             }
-            QPushButton:hover { background-color: #1ebe57; }
-            QPushButton:disabled { background-color: #aaa; color: #eee; }
+            QPushButton:hover   { background-color: #2471a3; }
+            QPushButton:pressed { background-color: #1a5276; }
+            QPushButton:disabled { background-color: #a0b4c8; color: #ddd; }
         """)
 
-        btn_layout.addWidget(self.btn_cancel)
-        btn_layout.addStretch()
-        btn_layout.addWidget(self.btn_send)
-        layout.addLayout(btn_layout)
+        btn_row.addWidget(self.btn_cancel)
+        btn_row.addStretch()
+        btn_row.addWidget(self.btn_send)
+        root.addLayout(btn_row)
 
-    def _send_feedback(self):
+    # ── Slot ──────────────────────────────────────────────────────────────────
+    def _on_send(self):
         desc = self.input_desc.toPlainText().strip()
         if not desc:
             QMessageBox.warning(self, "Peringatan", "Deskripsi tidak boleh kosong.")
             self.input_desc.setFocus()
             return
 
-        fb_label = self.combo_type.currentText()
-        fb_type  = self.FEEDBACK_TYPES.get(fb_label, "FEEDBACK")
-        title    = self.input_title.text().strip()
-        now      = datetime.now().strftime("%d/%m/%Y %H:%M")
+        from modules.feedback_manager import build_payload
+        payload = build_payload(
+            site_code    = self.site_code,
+            store_name   = self.store_name,
+            feedback_type= self.combo_type.currentText(),
+            title        = self.input_title.text().strip(),
+            description  = desc,
+        )
 
-        # Format pesan WhatsApp
-        lines = [
-            f"*[REPOT.IN FEEDBACK — {fb_type}]*",
-            "",
-            f"*Toko*     : {self.site_code} — {self.store_name}",
-            f"*Versi*    : v{APP_VERSION}",
-            f"*Waktu*    : {now}",
-        ]
-        if title:
-            lines.append(f"*Judul*    : {title}")
-        lines += [
-            "",
-            f"*Detail:*",
-            desc,
-            "",
-            "_(Pesan ini dikirim dari dalam aplikasi Repot.in)_"
-        ]
+        # Tampilkan loading state
+        self.btn_send.setEnabled(False)
+        self.btn_cancel.setEnabled(False)
+        self.progress.setVisible(True)
+        self.lbl_status.setText("Mengirim feedback…")
 
-        message = "\n".join(lines)
+        # Jalankan di thread terpisah
+        self._worker = _SubmitWorker(payload, self.sheet_url)
+        self._worker.done.connect(self._on_submit_done)
+        self._worker.start()
 
-        # Buka WhatsApp
-        wa_number = self.dev_wa.replace("+", "").replace("-", "").replace(" ", "")
-        url = f"https://wa.me/{wa_number}?text={quote(message)}"
-        success = QDesktopServices.openUrl(QUrl(url))
+    def _on_submit_done(self, online: bool):
+        self.progress.setVisible(False)
+        self.btn_send.setEnabled(True)
+        self.btn_cancel.setEnabled(True)
 
-        if success:
+        if online:
             QMessageBox.information(
-                self, "Berhasil",
-                "WhatsApp terbuka dengan pesan yang sudah terisi.\n"
-                "Silakan tekan 'Kirim' di WhatsApp untuk mengirimkan feedback."
+                self, "Tengkyu!",
+                "Feedback berhasil dikirim ke jst_eds.\n"
+                "caaalm, kalo ada waktu gue baca."
             )
-            self.accept()
         else:
-            QMessageBox.warning(
-                self, "Gagal",
-                "Tidak dapat membuka WhatsApp.\n"
-                "Pastikan WhatsApp Desktop atau browser tersedia."
+            QMessageBox.information(
+                self, "Tersimpan Lokal",
+                "Tidak dapat terhubung ke server saat ini.\n"
+                "Feedback disimpan di perangkat ini dan akan dikirim\n"
+                "otomatis saat aplikasi dibuka kembali dengan koneksi internet."
             )
+        self.accept()

@@ -205,6 +205,10 @@ class ReportingApp(QMainWindow):
         
         # Eksekusi pengecekan pertama setelah delay 5 detik agar splash screen lewat
         QTimer.singleShot(5000, self._check_broadcast_now)
+        
+        # Upload antrian feedback offline (jika ada) — 8 detik setelah startup
+        QTimer.singleShot(8000, self._flush_feedback_queue)
+
 
     def _check_broadcast_now(self):
         from modules.broadcast_manager import BroadcastCheckerThread
@@ -228,6 +232,20 @@ class ReportingApp(QMainWindow):
                 # Show popup and save ID if 'Saya Mengerti' is clicked
                 if dialog.exec_() == QDialog.Accepted:
                     self.config_manager.mark_broadcast_read(b_id)
+
+    def _flush_feedback_queue(self):
+        """Upload antrian feedback offline ke Sheets (dijalankan di background thread)."""
+        from utils.constants import FEEDBACK_SHEET_URL
+        if not FEEDBACK_SHEET_URL:
+            return
+        import threading
+        from modules.feedback_manager import flush_queue
+        def _run():
+            sent = flush_queue(FEEDBACK_SHEET_URL)
+            if sent:
+                logging.info(f"[Startup] {sent} feedback dari antrian lokal berhasil dikirim.")
+        threading.Thread(target=_run, daemon=True).start()
+
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -397,7 +415,8 @@ class ReportingApp(QMainWindow):
         
         help_menu.addSeparator()
         feedback_action = QAction("Kirim Feedback / Lapor Bug...", self)
-        feedback_action.setStatusTip("Kirim laporan bug, saran, atau request fitur ke developer via WhatsApp")
+        feedback_action.setStatusTip("Kirim laporan bug, saran, atau request fitur ke developer")
+
         feedback_action.triggered.connect(self._show_feedback_dialog)
         help_menu.addAction(feedback_action)
     
@@ -1828,6 +1847,22 @@ class ReportingApp(QMainWindow):
         
         # Konten Log (HTML Format)
         html_content = """
+        <h2 style="color: #2980b9;">Repot.in - Versi 5.1.1</h2>
+<p><b>Status:</b> minor Update<br><b>Tanggal:</b> 03 Mei 2026</p>
+<hr>
+
+<h3 style="color: #e67e22;">🚀 Fitur dan Optimasi </h3>
+<ul>
+    <li><b>Dashboard:</b> Penambahan komparasi sales by hour to LW/LM/Custom date.</li>
+    <li><b>Feedback form:</b> Optimasi form langsung tanpa whatsapp.</li>
+</ul>
+
+<h3 style="color: #c0392b;">🐞 Bug Fixes</h3>
+<ul>
+    <li><b>Dashboard:</b> Fix BPK print issue.</li>
+    
+</ul>
+
         <h2 style="color: #2980b9;">Repot.in - Versi 5.1.0</h2>
 <p><b>Status:</b> minor Update<br><b>Tanggal:</b> 27 April 2026</p>
 <hr>

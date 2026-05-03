@@ -5,11 +5,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, 
-    QDateEdit, QGroupBox, QFrame, QApplication, QGridLayout,
+    QDateEdit, QTimeEdit, QGroupBox, QFrame, QApplication, QGridLayout,
     QPushButton, QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QDialogButtonBox
+    QDialogButtonBox, QScrollArea, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QDate, QTimer, QPropertyAnimation, QEasingCurve, QPoint
+from PyQt5.QtCore import Qt, QDate, QTime, QTimer, QPropertyAnimation, QEasingCurve, QPoint
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QGraphicsDropShadowEffect
 
@@ -176,6 +176,24 @@ class DashboardTab(QWidget):
         self.btn_prakiraan_bonus.setVisible(False)
         self.btn_prakiraan_bonus.clicked.connect(self._show_prakiraan_bonus)
         filter_layout.addWidget(self.btn_prakiraan_bonus)
+
+        # Tombol Komparasi Per Jam
+        self.btn_comp_hour = QPushButton("📊 Komparasi Per Jam")
+        self.btn_comp_hour.setStyleSheet("""
+            QPushButton {
+                background-color: #8e44ad;
+                color: white;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 4px 12px;
+                border-radius: 12px;
+                border: none;
+            }
+            QPushButton:hover { background-color: #7d3c98; }
+            QPushButton:pressed { background-color: #6c3483; }
+        """)
+        self.btn_comp_hour.clicked.connect(self._open_hourly_comparison_dialog)
+        filter_layout.addWidget(self.btn_comp_hour)
         
         main_layout.addLayout(filter_layout)
         
@@ -1171,3 +1189,312 @@ class DashboardTab(QWidget):
         layout.addWidget(btn_box)
         
         dlg.exec_()
+
+    # ================================================================
+    # HOURLY COMPARISON DIALOG
+    # ================================================================
+
+    def _open_hourly_comparison_dialog(self):
+        """Buka dialog Komparasi Per Jam.
+        Default date1 = tanggal yang sudah diset user di filter dashboard (end_date).
+        Default time  = jam saat ini.
+        """
+        site_code = self.parent_app.config_manager.get_config().get('site_code')
+        # Gunakan tanggal dari end_date di filter dashboard
+        default_date_str = self.end_date.date().toString("yyyy-MM-dd")
+        # Gunakan jam saat ini sebagai default cutoff
+        from PyQt5.QtCore import QTime
+        default_time_str = QTime.currentTime().toString("HH:mm")
+        dlg = HourlyComparisonDialog(
+            self.db, site_code,
+            default_date_str=default_date_str,
+            default_time_str=default_time_str,
+            parent=self
+        )
+        dlg.exec_()
+
+
+class HourlyComparisonDialog(QDialog):
+    """Dialog popup Komparasi Sales Per Jam."""
+
+    def __init__(self, db, site_code, default_date_str=None, default_time_str=None, parent=None):
+        super().__init__(parent)
+        self.db = db
+        self.site_code = site_code
+        self.setWindowTitle("📊 Komparasi Sales Per Jam")
+        self.setMinimumSize(820, 520)
+        self.resize(900, 560)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+
+        # Tentukan default date1
+        if default_date_str:
+            try:
+                import datetime as _dt
+                d = _dt.datetime.strptime(default_date_str, "%Y-%m-%d").date()
+                self._default_date1 = QDate(d.year, d.month, d.day)
+            except Exception:
+                self._default_date1 = QDate.currentDate()
+        else:
+            self._default_date1 = QDate.currentDate()
+
+        # Tentukan default time
+        if default_time_str:
+            try:
+                self._default_time = QTime.fromString(default_time_str, "HH:mm")
+            except Exception:
+                self._default_time = QTime.currentTime()
+        else:
+            self._default_time = QTime.currentTime()
+
+        self._build_ui()
+        # Auto-run saat dialog dibuka (tampilkan data awal)
+        self._run_comparison()
+
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setSpacing(10)
+        root.setContentsMargins(16, 14, 16, 14)
+
+        # ── Header ────────────────────────────────────────────────────
+        hdr = QLabel("Bandingkan performa sales, TC, AC, Large, dan Ouast pada dua tanggal di jam yang sama.")
+        hdr.setStyleSheet("color: #7f8c8d; font-size: 11px; font-style: italic;")
+        root.addWidget(hdr)
+
+        # ── Row Kontrol ───────────────────────────────────────────────
+        ctrl = QHBoxLayout()
+        ctrl.setSpacing(10)
+
+        # Tanggal 1
+        lbl1 = QLabel("Tanggal:")
+        lbl1.setStyleSheet("font-weight: bold; font-size: 11px;")
+        ctrl.addWidget(lbl1)
+        self.date1 = QDateEdit(self._default_date1)
+        self.date1.setCalendarPopup(True)
+        self.date1.setDisplayFormat("dd/MM/yyyy")
+        self.date1.setFixedWidth(115)
+        ctrl.addWidget(self.date1)
+
+        ctrl.addSpacing(4)
+        lbl_time = QLabel("s/d Jam:")
+        lbl_time.setStyleSheet("font-weight: bold; font-size: 11px;")
+        ctrl.addWidget(lbl_time)
+        self.time_edit = QTimeEdit()
+        self.time_edit.setDisplayFormat("HH:mm")
+        self.time_edit.setTime(self._default_time)
+        self.time_edit.setFixedWidth(72)
+        ctrl.addWidget(self.time_edit)
+
+        # Separator
+        sep = QLabel("vs")
+        sep.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 14px; padding: 0 8px;")
+        ctrl.addWidget(sep)
+
+        # Mode pembanding
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["Last Week", "Last Month", "Custom"])
+        self.mode_combo.setFixedWidth(115)
+        self.mode_combo.currentTextChanged.connect(self._on_mode_changed)
+        ctrl.addWidget(self.mode_combo)
+
+        # Tanggal 2 custom
+        self.date2 = QDateEdit(self._default_date1.addDays(-7))
+        self.date2.setCalendarPopup(True)
+        self.date2.setDisplayFormat("dd/MM/yyyy")
+        self.date2.setFixedWidth(115)
+        self.date2.setVisible(False)
+        ctrl.addWidget(self.date2)
+
+        ctrl.addStretch()
+
+        # Tombol Bandingkan
+        self.btn_run = QPushButton("🔍  Bandingkan")
+        self.btn_run.setFixedHeight(32)
+        self.btn_run.setStyleSheet("""
+            QPushButton {
+                background-color: #2980b9;
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 4px 20px;
+                border-radius: 8px;
+                border: none;
+            }
+            QPushButton:hover { background-color: #2471a3; }
+            QPushButton:pressed { background-color: #1a5276; }
+        """)
+        self.btn_run.clicked.connect(self._run_comparison)
+        ctrl.addWidget(self.btn_run)
+        root.addLayout(ctrl)
+
+        # ── Info Label ────────────────────────────────────────────────
+        self.info_lbl = QLabel("Memuat data...")
+        self.info_lbl.setStyleSheet(
+            "color: #2c3e50; font-size: 11px; font-weight: bold; "
+            "background: #eaf4fb; padding: 6px 10px; border-radius: 6px;"
+        )
+        root.addWidget(self.info_lbl)
+
+        # ── Tabel + Chart berdampingan ────────────────────────────────
+        content_row = QHBoxLayout()
+        content_row.setSpacing(16)
+
+        # ---- Tabel ----
+        self.table = QTableWidget(5, 4)
+        self.table.setHorizontalHeaderLabels(["Metrik", "TW", "Pembanding", "Δ (%)"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionMode(QTableWidget.NoSelection)
+        self.table.setAlternatingRowColors(True)
+        self.table.setMinimumHeight(190)
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #d5d8dc;
+                border-radius: 6px;
+                gridline-color: #ecf0f1;
+                font-size: 12px;
+            }
+            QHeaderView::section {
+                background-color: #2c3e50;
+                color: white;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 6px 4px;
+                border: none;
+            }
+            QTableWidget::item { padding: 4px 6px; }
+            QTableWidget::item:alternate { background-color: #f4f6f7; }
+        """)
+        # Placeholder rows
+        for r, name in enumerate(["Sales", "TC", "AC", "Large", "Ouast"]):
+            self.table.setItem(r, 0, QTableWidgetItem(name))
+            for c in range(1, 4):
+                self.table.setItem(r, c, QTableWidgetItem("-"))
+        content_row.addWidget(self.table, 4)
+
+        # ---- Chart ----
+        self.fig = Figure(figsize=(5.5, 3.5), dpi=90)
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setMinimumHeight(190)
+        content_row.addWidget(self.canvas, 6)
+
+        root.addLayout(content_row)
+
+        # ── Tombol Tutup ──────────────────────────────────────────────
+        btn_close = QDialogButtonBox(QDialogButtonBox.Close)
+        btn_close.rejected.connect(self.accept)
+        root.addWidget(btn_close)
+
+    def _on_mode_changed(self, mode):
+        self.date2.setVisible(mode == "Custom")
+
+    def _run_comparison(self):
+        """Query data dan update tabel + chart."""
+        import datetime
+
+        date1 = self.date1.date().toPyDate()
+        date1_str = date1.strftime('%Y-%m-%d')
+        cutoff_str = self.time_edit.time().toString("HH:mm")
+
+        mode = self.mode_combo.currentText()
+        if mode == "Last Week":
+            date2 = date1 - datetime.timedelta(days=7)
+        elif mode == "Last Month":
+            try:
+                from dateutil.relativedelta import relativedelta
+                date2 = date1 - relativedelta(months=1)
+            except ImportError:
+                date2 = date1 - datetime.timedelta(days=28)
+        else:
+            date2 = self.date2.date().toPyDate()
+        date2_str = date2.strftime('%Y-%m-%d')
+
+        fmt_d = lambda d: d.strftime('%d/%m/%Y')
+        self.info_lbl.setText(
+            f"🗓  {fmt_d(date1)} s/d jam {cutoff_str}   vs   {fmt_d(date2)} s/d jam {cutoff_str}"
+        )
+
+        result = self.db.get_hourly_comparison_metrics(date1_str, date2_str, cutoff_str, self.site_code)
+        cur = result.get('current') or {}
+        cmp = result.get('compare') or {}
+
+        def fmt_rp(v):
+            return f"Rp {v:,.0f}".replace(",", ".")
+
+        def calc_delta(cur_v, cmp_v):
+            if cmp_v and cmp_v > 0:
+                d = ((cur_v - cmp_v) / cmp_v) * 100
+                return d, f"{'+' if d >= 0 else ''}{d:.1f}%"
+            elif cur_v > 0:
+                return 100.0, "+100.0%"
+            return 0.0, "0.0%"
+
+        rows_def = [
+            ("Sales",  cur.get('sales', 0),  cmp.get('sales', 0),  True),
+            ("TC",     cur.get('tc', 0),     cmp.get('tc', 0),     False),
+            ("AC",     cur.get('ac', 0),     cmp.get('ac', 0),     True),
+            ("Large",  cur.get('large', 0),  cmp.get('large', 0),  False),
+            ("Ouast",  cur.get('ouast', 0),  cmp.get('ouast', 0),  True),
+        ]
+
+        delta_values = []
+        for row_i, (name, cur_v, cmp_v, is_rp) in enumerate(rows_def):
+            cur_str = fmt_rp(cur_v) if is_rp else str(int(cur_v))
+            cmp_str = fmt_rp(cmp_v) if is_rp else str(int(cmp_v))
+            delta_num, delta_str = calc_delta(cur_v, cmp_v)
+            delta_values.append(delta_num)
+
+            self.table.setItem(row_i, 0, QTableWidgetItem(name))
+
+            item_c = QTableWidgetItem(cur_str)
+            item_c.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(row_i, 1, item_c)
+
+            item_p = QTableWidgetItem(cmp_str)
+            item_p.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(row_i, 2, item_p)
+
+            item_d = QTableWidgetItem(delta_str)
+            item_d.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            item_d.setForeground(QColor('#27ae60') if delta_num >= 0 else QColor('#e74c3c'))
+            self.table.setItem(row_i, 3, item_d)
+
+        self._plot_chart([r[0] for r in rows_def], delta_values)
+
+    def _plot_chart(self, metric_names, delta_values):
+        self.fig.clear()
+        ax = self.fig.add_subplot(111)
+
+        names_rev = list(reversed(metric_names))
+        vals_rev  = list(reversed(delta_values))
+        colors    = ['#27ae60' if v >= 0 else '#e74c3c' for v in vals_rev]
+
+        ax.barh(names_rev, vals_rev, color=colors, alpha=0.85, height=0.55)
+        ax.axvline(0, color='#2c3e50', linewidth=1.0)
+
+        for i, v in enumerate(vals_rev):
+            sign = "+" if v >= 0 else ""
+            x_pos = v + (1.5 if v >= 0 else -1.5)
+            ha = 'left' if v >= 0 else 'right'
+            ax.text(x_pos, i, f"{sign}{v:.1f}%", va='center', ha=ha,
+                    fontsize=9, color='#2c3e50', fontweight='bold')
+
+        max_v = max((abs(v) for v in delta_values), default=10)
+        pad = max(max_v * 0.45, 15)
+        ax.set_xlim(-max_v - pad, max_v + pad)
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_color('#bdc3c7')
+        ax.tick_params(axis='y', length=0, labelsize=10)
+        ax.tick_params(axis='x', labelsize=8, colors='#7f8c8d')
+        ax.set_xlabel("% Perubahan vs Periode Pembanding", fontsize=9, color='#7f8c8d')
+
+        self.fig.subplots_adjust(left=0.15, right=0.88, top=0.95, bottom=0.15)
+        try:
+            self.canvas.draw()
+        except Exception:
+            pass
+

@@ -57,6 +57,46 @@ class SettingsPanel(QFrame):
         
         layout.addWidget(name_group)
         
+        # --- Paper Mode & Offset Group ---
+        paper_group = QGroupBox("Pengaturan Kertas & Cetak")
+        paper_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        paper_layout = QVBoxLayout(paper_group)
+        
+        # Mode Kertas
+        mode_layout = QHBoxLayout()
+        self.rb_a4 = QRadioButton("A4 HVS (Lengkap Garis & Logo)")
+        self.rb_continuous = QRadioButton("2-Ply Pre-Printed (Hanya Data)")
+        
+        paper_btn_group = QButtonGroup(self)
+        paper_btn_group.addButton(self.rb_a4)
+        paper_btn_group.addButton(self.rb_continuous)
+        
+        mode_layout.addWidget(self.rb_a4)
+        mode_layout.addWidget(self.rb_continuous)
+        mode_layout.addStretch()
+        paper_layout.addLayout(mode_layout)
+        
+        # Offsets
+        offset_layout = QHBoxLayout()
+        offset_layout.addWidget(QLabel("Geser Kanan (X):"))
+        from PyQt5.QtWidgets import QDoubleSpinBox
+        self.spin_offset_x = QDoubleSpinBox()
+        self.spin_offset_x.setRange(-50.0, 50.0)
+        self.spin_offset_x.setSuffix(" mm")
+        self.spin_offset_x.setSingleStep(1.0)
+        offset_layout.addWidget(self.spin_offset_x)
+        
+        offset_layout.addWidget(QLabel("  Geser Bawah (Y):"))
+        self.spin_offset_y = QDoubleSpinBox()
+        self.spin_offset_y.setRange(-50.0, 50.0)
+        self.spin_offset_y.setSuffix(" mm")
+        self.spin_offset_y.setSingleStep(1.0)
+        offset_layout.addWidget(self.spin_offset_y)
+        offset_layout.addStretch()
+        
+        paper_layout.addLayout(offset_layout)
+        layout.addWidget(paper_group)
+        
         # Load current setting
         config_data = self.config_manager.get_config()
         mode = config_data.get('bpk_name_mode', 'full')
@@ -66,8 +106,21 @@ class SettingsPanel(QFrame):
             self.rb_full.setChecked(True)
         self._update_example()
         
+        paper_mode = config_data.get('bpk_paper_mode', 'a4')
+        if paper_mode == 'continuous':
+            self.rb_continuous.setChecked(True)
+        else:
+            self.rb_a4.setChecked(True)
+            
+        self.spin_offset_x.setValue(float(config_data.get('bpk_offset_x', 0.0)))
+        self.spin_offset_y.setValue(float(config_data.get('bpk_offset_y', 0.0)))
+        
         self.rb_full.toggled.connect(self._on_mode_changed)
         self.rb_first.toggled.connect(self._on_mode_changed)
+        self.rb_a4.toggled.connect(self._on_paper_changed)
+        self.rb_continuous.toggled.connect(self._on_paper_changed)
+        self.spin_offset_x.valueChanged.connect(self._on_offset_changed)
+        self.spin_offset_y.valueChanged.connect(self._on_offset_changed)
         
     def _update_example(self):
         is_first = self.rb_first.isChecked()
@@ -80,6 +133,14 @@ class SettingsPanel(QFrame):
         self._update_example()
         mode = 'first' if self.rb_first.isChecked() else 'full'
         self.config_manager.set_value('bpk_name_mode', mode)
+
+    def _on_paper_changed(self):
+        paper_mode = 'continuous' if self.rb_continuous.isChecked() else 'a4'
+        self.config_manager.set_value('bpk_paper_mode', paper_mode)
+        
+    def _on_offset_changed(self):
+        self.config_manager.set_value('bpk_offset_x', self.spin_offset_x.value())
+        self.config_manager.set_value('bpk_offset_y', self.spin_offset_y.value())
 
 
 class BPKTab(QWidget):
@@ -340,33 +401,30 @@ class BPKTab(QWidget):
         data = self._get_selected_data()
         if not data: return
         path = data['pdf_path']
-        if os.path.exists(path):
-            try:
-                from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
-                import win32api
-                
-                printer = QPrinter()
-                dialog = QPrintDialog(printer, self)
-                dialog.setWindowTitle("Pilih Printer")
-                
-                if dialog.exec_() == QPrintDialog.Accepted:
-                    printer_name = printer.printerName()
-                    # Cetak dengan shell execute 'printto' menggunakan nama printer yang dipilih
-                    win32api.ShellExecute(0, "printto", path, f'"{printer_name}"', ".", 0)
-                    QMessageBox.information(self, "Print", f"Sedang mengirim ke printer:\n{printer_name}")
-            except ImportError:
-                # Fallback jika QtPrintSupport atau win32api tidak tersedia
-                try:
-                    os.startfile(path, "print")
-                    QMessageBox.information(self, "Print", "Sedang mengirim ke printer default...")
-                except Exception as fallback_e:
-                    logging.error(f"Failed to print PDF with fallback: {fallback_e}")
-                    QMessageBox.warning(self, "Error", f"Gagal mencetak file:\n{fallback_e}")
-            except Exception as e:
-                logging.error(f"Failed to print PDF: {e}")
-                QMessageBox.warning(self, "Error", f"Gagal mencetak file:\n{e}")
-        else:
+        if not os.path.exists(path):
             QMessageBox.warning(self, "Tidak Ditemukan", "File PDF tidak ditemukan.")
+            return
+
+        try:
+            from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
+            from modules.bpk_generator import BPKGenerator
+
+            printer = QPrinter()
+            dialog = QPrintDialog(printer, self)
+            dialog.setWindowTitle("Pilih Printer untuk BPK")
+            if dialog.exec_() == QPrintDialog.Accepted:
+                printer_name = printer.printerName()
+                gen = BPKGenerator(self.config_manager)
+                gen.print_pdf(path, printer_name=printer_name, parent=self)
+        except Exception as e:
+            logging.error(f"Failed to open print dialog: {e}")
+            # Fallback: gunakan print_pdf langsung tanpa dialog
+            try:
+                from modules.bpk_generator import BPKGenerator
+                gen = BPKGenerator(self.config_manager)
+                gen.print_pdf(path, printer_name="", parent=self)
+            except Exception as e2:
+                QMessageBox.warning(self, "Error", f"Gagal mencetak:\n{e2}")
 
     def _mark_claimed(self):
         data = self._get_selected_data()

@@ -1,6 +1,6 @@
 {
-  "latest_version": "5.1.0",
-  "release_notes": " - Major optimation on UI/UX. \n - Add BPK Generator, u can now easily create BPK and maintain init. \n - Dashboard optimation \n - Feedback and sugestion form, please use it in case u found any bug or just wanna req more feature.",
+  "latest_version": "5.1.1",
+  "release_notes": " - Fix BPK print issue. \n - Add sales by hour comparation on dashboard. \n - Optimation feedback form, please use it in case u found any bug or just wanna req more feature on next update.",
   "download_url": "https://drive.google.com/drive/folders/1rwyOpgKzgOpoJvAG-b0yPxETG09O81ma?usp=sharing",
-  "download_file_id": "1A1rhiS2g0It70tqgsreP4ZdG8MMoWz-d"
+  "download_file_id": "1Z9UPi-CLMYrQZQbZQNLBNDqvdhu1lmMr"
 }
