@@ -1,4 +1,4 @@
-# Repot.in — Sales Report Dashboard for Aurora
+# Repot.in — No More Repot Reporting
 
 <p align="center">
   <img src="Screenshots/dashboard.png" alt="Repot.in Dashboard" width="800"/>
@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/license-Private-red?style=flat-square" alt="License"/>
 </p>
 
-> Aplikasi desktop manajemen dan analitik laporan penjualan harian untuk store yang menggunakan sistem POS backend **Aurora**. Repot.in menyederhanakan proses pelaporan dari input CSV mentah hingga laporan siap kirim — lengkap dengan dashboard real-time, analisis promo, dan banyak lagi.
+> Aplikasi desktop manajemen dan analitik laporan penjualan harian untuk store yang menggunakan sistem POS backend **Aurora**. Repot.in menyederhanakan proses pelaporan dari input CSV mentah hingga laporan siap kirim, lengkap dengan dashboard real-time, analisis promo, dan banyak lagi.
 
 ---
 
