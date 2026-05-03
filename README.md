@@ -223,7 +223,7 @@ File tema QSS dapat diunduh/diperbarui melalui fitur **Unduh File Online**.
 
 ## Feedback & Bug Report
 
-Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedback akan langsung dari aplikasi. Jika offline, data tersimpan secara lokal dan dikirim otomatis saat koneksi pulih.
+Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedback akan dikirim langsung dari aplikasi. Jika offline, data tersimpan secara lokal dan akan dikirim otomatis saat koneksi sudah pulih.
 
 ---
 
