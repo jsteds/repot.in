@@ -40,7 +40,7 @@
 
 <table>
   <tr>
-    <td align="center"><img src="screenshot.png" alt="Dashboard Utama" width="350"/><br/><sub>Dashboard Utama</sub></td>
+    <td align="center"><img src="<img width="1366" height="768" alt="ae4e4578-aa18-4f8a-a65e-af9cee72b9cd" src="https://github.com/user-attachments/assets/2ce941a4-6cc5-45e6-ae00-2ac7ab8edfc4" />" alt="Dashboard Utama" width="350"/><br/><sub>Dashboard Utama</sub></td>
     <td align="center"><img src="screenshot_sidebar_expanded.png" alt="Sidebar Expanded" width="350"/><br/><sub>Sidebar Expanded</sub></td>
   </tr>
   <tr>
