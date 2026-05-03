@@ -106,6 +106,7 @@ repot.in/
 │
 ├── data/                    # Data runtime (SQLite, log, JSON)
 ├── downloads/               # File master data yang diunduh
+├── requirements.txt         # Daftar dependensi Python
 └── version.json             # Metadata versi untuk auto-update checker
 ```
 
@@ -141,7 +142,7 @@ python main_app.py
 
 ---
 
-## 📦 Dependensi Utama
+## Dependensi Utama
 
 | Library | Kegunaan |
 |---|---|
@@ -153,7 +154,7 @@ python main_app.py
 | `requests` | HTTP calls (feedback, broadcast, update check) |
 | `openpyxl` | Baca/tulis file Excel (master data) |
 
-> ⚠️ File `requirements.txt` tidak disertakan di repo ini. Lihat daftar import di `main_app.py` dan subfolder untuk daftar lengkap.
+> 💡 File `requirements.txt` sudah tersedia di dalam repositori ini. Anda dapat menggunakannya untuk menginstal seluruh dependensi dengan perintah `pip install -r requirements.txt`.
 
 ---
 
@@ -233,12 +234,12 @@ Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedb
 
 ---
 
-## 📄 Lisensi
+## Lisensi
 
 Proyek ini bersifat **privat** dan digunakan secara internal. Distribusi tanpa izin tidak diperkenankan.
 
 ---
 
 <p align="center">
-  Dibuat dengan ❤️ untuk memudahkan pekerjaan tim operasional citemmm :p
+  Dibuat dengan ❤️ untuk memudahkan pekerjaan tim operasional citemmm :p -by jst eds
 </p>
