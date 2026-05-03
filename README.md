@@ -198,7 +198,7 @@ python main_app.py
 
 ## Sistem Auto-Update
 
-Aplikasi secara otomatis memeriksa versi terbaru melalui URL yang dikonfigurasi di `version.json`. Jika versi baru tersedia, notifikasi akan muncul dengan tautan unduh ke Google Drive.
+Aplikasi secara otomatis memeriksa versi terbaru melalui URL yang dikonfigurasi di `version.json`. Jika versi baru tersedia, notifikasi akan muncul dengan tautan dan install langsung dari aplikasi.
 
 ```
 Versi Saat Ini: 5.1.1
@@ -223,14 +223,14 @@ File tema QSS dapat diunduh/diperbarui melalui fitur **Unduh File Online**.
 
 ## Feedback & Bug Report
 
-Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedback akan langsung terkirim ke Google Sheets developer. Jika offline, data tersimpan secara lokal dan dikirim otomatis saat koneksi pulih.
+Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedback akan langsung dari aplikasi. Jika offline, data tersimpan secara lokal dan dikirim otomatis saat koneksi pulih.
 
 ---
 
 ## Kontributor
 
-- **[@jsteds](https://github.com/jsteds)** — Lead Developer
-- **[@e001red-coder](https://github.com/e001red-coder)** — Co-Developer
+- **[@jsteds](https://github.com/jsteds)** — Introvert Dev
+- **[@e001red-coder](https://github.com/e001red-coder)** — also Me
 
 ---
 
