@@ -1,7 +1,7 @@
 # Repot.in — Sales Report Dashboard for Aurora
 
 <p align="center">
-  <img src="screenshot.png" alt="Repot.in Dashboard" width="800"/>
+  <img src="Screenshots/dashboard.png" alt="Repot.in Dashboard" width="800"/>
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/license-Private-red?style=flat-square" alt="License"/>
 </p>
 
-> Aplikasi desktop manajemen dan analitik laporan penjualan harian untuk toko ritel yang menggunakan sistem POS **Aurora**. Repot.in menyederhanakan proses pelaporan dari input CSV mentah hingga laporan siap kirim — lengkap dengan dashboard real-time, cetak BPK, analisis promo, dan banyak lagi.
+> Aplikasi desktop manajemen dan analitik laporan penjualan harian untuk store yang menggunakan sistem POS backend **Aurora**. Repot.in menyederhanakan proses pelaporan dari input CSV mentah hingga laporan siap kirim — lengkap dengan dashboard real-time, analisis promo, dan banyak lagi.
 
 ---
 
@@ -26,12 +26,12 @@
 | 💰 **Kas & Tips** | Pencatatan kas masuk/keluar dan manajemen tips karyawan |
 | 📦 **Order Barang** | Manajemen dan tracking permintaan order ke warehouse |
 | 🗑️ **Waste Conversion** | Konversi dan pencatatan waste produk dengan resep konfigurasi |
-| 🧾 **BPK Generator** | Cetak Bukti Pengeluaran Kas (BPK) dalam format PDF otomatis |
-| 📅 **Edspayed** | Kalkulator dan tracker tanggal kedaluwarsa produk |
-| 💧 **Minum (Periode)** | Tracker konsumsi minuman per periode shift |
-| ☁️ **Upload Google Sheet** | Sinkronisasi data laporan ke Google Spreadsheet |
+| 🧾 **BPK Generator** | Buat, cetak & kelola Bukti Pengeluaran Kas (BPK) dalam format PDF otomatis |
+| 📅 **Edspayed** | Kalkulator dan tracker tanggal expired produk |
+| 💧 **Minum (Periode)** | Tracker jadwal pembelian air Galon karyawan |
+| ☁️ **Upload Google Sheet** | Sinkronisasi data laporan ke Google Sheets |
 | 📢 **Broadcast System** | Notifikasi dan pengumuman real-time dari developer |
-| 📝 **Notes & Todo List** | Catatan dan daftar tugas internal per outlet |
+| 📝 **Notes & Todo List** | Catatan dan daftar tugas internal |
 | 💬 **Feedback** | Kirim laporan bug atau request fitur langsung ke Google Sheets |
 
 ---
@@ -40,16 +40,11 @@
 
 <table>
   <tr>
-    <td align="center"><img src="<img width="1366" height="768" alt="ae4e4578-aa18-4f8a-a65e-af9cee72b9cd" src="https://github.com/user-attachments/assets/2ce941a4-6cc5-45e6-ae00-2ac7ab8edfc4" />" alt="Dashboard Utama" width="350"/><br/><sub>Dashboard Utama</sub></td>
-    <td align="center"><img src="screenshot_sidebar_expanded.png" alt="Sidebar Expanded" width="350"/><br/><sub>Sidebar Expanded</sub></td>
+    <td align="center"><img src="Screenshots/dashboard.png" alt="Dashboard Utama" width="350"/><br/><sub>Dashboard Utama</sub></td>
+    <td align="center"><img src="Screenshots/sales_report.png" alt="Sales Report" width="350"/><br/><sub>Sales Report</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="screenshot_kastips.png" alt="Kas & Tips" width="350"/><br/><sub>Kas & Tips</sub></td>
-    <td align="center"><img src="screenshot_todo_list.png" alt="Todo List" width="350"/><br/><sub>Todo List</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="screenshot_notes.png" alt="Notes" width="350"/><br/><sub>Notes</sub></td>
-    <td align="center"><img src="screenshot_marquee.png" alt="Marquee Info" width="350"/><br/><sub>Marquee Info</sub></td>
+    <td align="center"><img src="Screenshots/kastips.png" alt="Kas & Tips" width="350"/><br/><sub>Kas & Tips</sub></td>
   </tr>
 </table>
 
