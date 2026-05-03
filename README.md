@@ -21,18 +21,18 @@
 | Modul | Deskripsi |
 |---|---|
 | 📈 **Dashboard** | Ringkasan performa harian & MTD dengan indikator forecast vs. actuals |
-| 📋 **Sales Report** | Generate laporan penjualan dari file CSV Aurora secara otomatis |
-| 🔄 **Sync Aurora** | Scrape & download laporan langsung dari portal web Aurora |
+| 📋 **Sales Report** | Generate laporan penjualan dari file CSV Aurora |
+| 🔄 **Sync Aurora** | Scrape & download laporan langsung dari Aurora secara otomatis |
 | 💰 **Kas & Tips** | Pencatatan kas masuk/keluar dan manajemen tips karyawan |
-| 📦 **Order Barang** | Manajemen dan tracking permintaan order ke warehouse |
-| 🗑️ **Waste Conversion** | Konversi dan pencatatan waste produk dengan resep konfigurasi |
+| 📦 **Order Barang** | Manajemen dan tracking order raw material ke warehouse |
+| 🗑️ **Waste Conversion** | Konversi waste dan informasi budget waste |
 | 🧾 **BPK Generator** | Buat, cetak & kelola Bukti Pengeluaran Kas (BPK) dalam format PDF otomatis |
 | 📅 **Edspayed** | Kalkulator dan tracker tanggal expired produk |
 | 💧 **Minum (Periode)** | Tracker jadwal pembelian air Galon karyawan |
 | ☁️ **Upload Google Sheet** | Sinkronisasi data laporan ke Google Sheets |
 | 📢 **Broadcast System** | Notifikasi dan pengumuman real-time dari developer |
 | 📝 **Notes & Todo List** | Catatan dan daftar tugas internal |
-| 💬 **Feedback** | Kirim laporan bug atau request fitur langsung ke Google Sheets |
+| 💬 **Feedback** | Kirim laporan bug atau saran |
 
 ---
 
@@ -54,42 +54,42 @@
 
 ```
 repot.in/
-├── main_app.py              # Entry point & controller utama (QMainWindow)
+├── main_app.py              # Entry point & controller utama
 │
 ├── modules/                 # Business logic & backend
 │   ├── report_processor.py  # Pemrosesan data CSV & kalkulasi laporan
 │   ├── database_manager.py  # SQLite local database (kas, tips, dll)
 │   ├── order_db_manager.py  # Database order barang
 │   ├── aurora_scraper.py    # Web scraper portal Aurora (PyQt WebEngine)
-│   ├── config_manager.py    # Manajemen konfigurasi (INI + JSON)
+│   ├── config_manager.py    # Manajemen konfigurasi
 │   ├── bpk_generator.py     # Generator PDF Bukti Pengeluaran Kas
-│   ├── feedback_manager.py  # Pengiriman feedback ke Google Sheets
-│   ├── workers.py           # QThread workers (file import, GSheet upload)
+│   ├── feedback_manager.py  # Pengiriman feedback
+│   ├── workers.py           # QThread workers (file import)
 │   ├── notification_manager.py
 │   ├── broadcast_manager.py
 │   ├── asset_manager.py
 │   ├── chat_it_fetcher.py
 │   └── validation_manager.py
 │
-├── ui/                      # Tampilan antarmuka (PyQt5)
-│   ├── ui_components.py     # Komponen UI utama (sidebar, dashboard cards)
-│   ├── dashboard_tab.py     # Tab Dashboard dengan grafik & KPI
+├── ui/                      # Tampilan antarmuka
+│   ├── ui_components.py     # Komponen UI utama
+│   ├── dashboard_tab.py     # Tab Dashboard dengan grafik & KPI Cards
 │   ├── sales_report_tab.py  # Tab laporan penjualan
 │   ├── bpk_tab.py           # Tab manajemen BPK
 │   ├── bpk_dialog.py        # Dialog cetak & pratinjau BPK
 │   ├── order_tab_ui.py      # Tab order barang
 │   ├── waste_conversion_tab.py
 │   ├── minum_tab.py
-│   ├── dialogs.py           # Dialog-dialog (config, kalkulator, log, dll)
+│   ├── dialogs.py           # Dialog-dialog
 │   ├── downloader_dialog.py
 │   ├── feedback_dialog.py
 │   ├── notes_dialog.py
 │   └── todo_dialog.py
 │
 ├── utils/                   # Utilitas & konstanta
-│   ├── constants.py         # Konstanta global (path, versi, nama kolom)
+│   ├── constants.py         # Konstanta global
 │   ├── employee_utils.py    # Manajemen data karyawan & autentikasi
-│   ├── chart_utils.py       # Utilitas pembuatan grafik (Matplotlib)
+│   ├── chart_utils.py       # Utilitas pembuatan grafik
 │   ├── app_utils.py
 │   └── app_settings_utils.py
 │
@@ -154,7 +154,7 @@ python main_app.py
 | `requests` | HTTP calls (feedback, broadcast, update check) |
 | `openpyxl` | Baca/tulis file Excel (master data) |
 
-> 💡 File `requirements.txt` sudah tersedia di dalam repositori ini. Anda dapat menggunakannya untuk menginstal seluruh dependensi dengan perintah `pip install -r requirements.txt`.
+> Untuk menginstal seluruh dependensi, gunakan perintah `pip install -r requirements.txt`.
 
 ---
 
@@ -164,8 +164,8 @@ python main_app.py
 2. Buka menu **File → Konfigurasi** (Ctrl+,) untuk mengisi:
    - `Site Code` — kode outlet Anda
    - `Google Sheet ID` — untuk fitur upload laporan (opsional)
-   - Konfigurasi printer BPK
-3. Buka menu **File → Unduh File Online** untuk mengunduh asset pendukung (template, ikon, dll) dari Google Drive.
+   - `Atur Target` — Atur target Bulanan dan Harian
+3. Buka menu **File → Unduh File Online** untuk mengunduh asset pendukung (template, ikon, dll) dari server online.
 
 ---
 
@@ -214,8 +214,8 @@ Repot.in mendukung dua tema:
 
 | Tema | Cara Aktifkan |
 |---|---|
-| ☀️ Terang (Light) | Menu Tampilan → Tema Terang |
-| 🌙 Gelap (Dark) | Menu Tampilan → Tema Gelap |
+| Terang (Light) | Menu Tampilan → Tema Terang |
+| Gelap (Dark) | Menu Tampilan → Tema Gelap |
 
 File tema QSS dapat diunduh/diperbarui melalui fitur **Unduh File Online**.
 
@@ -227,7 +227,7 @@ Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedb
 
 ---
 
-## 👥 Kontributor
+## Kontributor
 
 - **[@jsteds](https://github.com/jsteds)** — Lead Developer
 - **[@e001red-coder](https://github.com/e001red-coder)** — Co-Developer
