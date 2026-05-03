@@ -1,4 +1,4 @@
-# 📊 Repot.in — Sales Report Dashboard for Aurora
+# Repot.in — Sales Report Dashboard for Aurora
 
 <p align="center">
   <img src="screenshot.png" alt="Repot.in Dashboard" width="800"/>
@@ -16,7 +16,7 @@
 
 ---
 
-## ✨ Fitur Utama
+## Fitur Utama
 
 | Modul | Deskripsi |
 |---|---|
@@ -36,7 +36,7 @@
 
 ---
 
-## 🖼️ Screenshots
+## Screenshots
 
 <table>
   <tr>
@@ -55,7 +55,7 @@
 
 ---
 
-## 🏗️ Arsitektur Proyek
+## Arsitektur Proyek
 
 ```
 repot.in/
@@ -116,7 +116,7 @@ repot.in/
 
 ---
 
-## 🚀 Cara Menjalankan (Development)
+## Cara Menjalankan (Development)
 
 ### Prasyarat
 
@@ -162,7 +162,7 @@ python main_app.py
 
 ---
 
-## ⚙️ Konfigurasi Pertama Kali
+## Konfigurasi Pertama Kali
 
 1. **Jalankan aplikasi** → akan muncul dialog perjanjian EULA.
 2. Buka menu **File → Konfigurasi** (Ctrl+,) untuk mengisi:
@@ -173,7 +173,7 @@ python main_app.py
 
 ---
 
-## 📥 Alur Penggunaan Harian
+## Alur Penggunaan Harian
 
 ```
 1. Buka Repot.in
@@ -191,7 +191,7 @@ python main_app.py
 
 ---
 
-## 🖨️ Fitur BPK (Bukti Pengeluaran Kas)
+## Fitur BPK (Bukti Pengeluaran Kas)
 
 - Input nama karyawan, nominal, dan keperluan
 - Generate PDF berformat A4 (emulasi continuous form)
@@ -200,7 +200,7 @@ python main_app.py
 
 ---
 
-## 🔄 Sistem Auto-Update
+## Sistem Auto-Update
 
 Aplikasi secara otomatis memeriksa versi terbaru melalui URL yang dikonfigurasi di `version.json`. Jika versi baru tersedia, notifikasi akan muncul dengan tautan unduh ke Google Drive.
 
@@ -212,7 +212,7 @@ Download      : https://drive.google.com/drive/folders/1rwyOpgKzgOpoJvAG-b0yPxET
 
 ---
 
-## 🎨 Tema Antarmuka
+## Tema Antarmuka
 
 Repot.in mendukung dua tema:
 
@@ -225,7 +225,7 @@ File tema QSS dapat diunduh/diperbarui melalui fitur **Unduh File Online**.
 
 ---
 
-## 📬 Feedback & Bug Report
+## Feedback & Bug Report
 
 Gunakan menu **Bantuan → Kirim Feedback / Lapor Bug** di dalam aplikasi. Feedback akan langsung terkirim ke Google Sheets developer. Jika offline, data tersimpan secara lokal dan dikirim otomatis saat koneksi pulih.
 
@@ -245,5 +245,5 @@ Proyek ini bersifat **privat** dan digunakan secara internal. Distribusi tanpa i
 ---
 
 <p align="center">
-  Dibuat dengan ❤️ untuk memudahkan pekerjaan tim operasional ritel
+  Dibuat dengan ❤️ untuk memudahkan pekerjaan tim operasional citemmm :p
 </p>
