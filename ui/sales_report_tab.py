@@ -996,6 +996,10 @@ class SalesReportTab(QWidget):
         main_splitter.addWidget(right_panel); main_splitter.setSizes([350, 750]); main_splitter.setCollapsible(0, False)
         
         main_layout.addWidget(main_splitter)
+        self._main_splitter = main_splitter
+
+        main_layout.addWidget(main_splitter)
+        self._main_splitter = main_splitter
 
         # Signals
         self.main_report_section.section_clicked.connect(self._handle_section_click)
@@ -1131,8 +1135,29 @@ class SalesReportTab(QWidget):
         if widget and hasattr(widget, 'get_text'):
             text = widget.get_text()
             QApplication.clipboard().setText(text)
+            
+            warning_msg = ""
+            if widget == getattr(self, 'main_report_section', None):
+                min_date = 'N/A'
+                # report_results_data adalah dict hasil dari processor.process()
+                if hasattr(self, 'main_app') and hasattr(self.main_app, 'report_results_data'):
+                    res = self.main_app.report_results_data or {}
+                    min_date = res.get('min_date_str', 'N/A')
+                
+                import logging
+                logging.info(f"Salin Teks ditekan. min_date_str dari report_results_data: {min_date}")
+                
+                if min_date not in ('N/A', '') and not min_date.startswith('01-'):
+                    day_val = min_date.split('-')[0]  # Ambil DD dari DD-MM-YYYY
+                    warning_msg = (
+                        f"\n\n⚠️ PERINGATAN:\n"
+                        f"Data yang diproses dimulai dari tanggal {day_val} (Bukan tanggal 1).\n"
+                        f"Nilai MTD yang disalin mungkin hanya mewakili sebagian hari "
+                        f"dan TIDAK sesuai dengan pencapaian aktual bulan berjalan."
+                    )
+            
             from PyQt5.QtWidgets import QMessageBox
-            QMessageBox.information(self, "Berhasil", "Teks berhasil disalin ke Setempel (Clipboard).")
+            QMessageBox.information(self, "Berhasil", f"Teks berhasil disalin ke Setempel (Clipboard).{warning_msg}")
         
     def _handle_print_request(self, text_to_print):
         if hasattr(self.main_app, "print_report_from_text"):

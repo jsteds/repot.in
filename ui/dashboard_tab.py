@@ -711,7 +711,7 @@ class DashboardTab(QWidget):
             total_emp_value = fulltime_count + (partimer_count * 0.8)
             
             if total_emp_value > 0:
-                productivity = sales_mtd / total_emp_value
+                productivity = forecast / total_emp_value
                 # Standar 35 Juta dengan margin +/- 5% (33.25jt - 36.75jt)
                 if productivity > 36750000:
                     mpp_status = "MPP Kurang"

@@ -582,7 +582,7 @@ class TemplateEditorDialog(QDialog):
             ("{target_harian}", "Target Proporsi Hari Ini"), ("{target_mtd}", "Target Proporsi MTD"),
             ("{target_tc}", "Target TC Hari Ini"), ("{target_sc}", "Target SC Hari Ini"),
             ("{target_large}", "Target Large Hari Ini"), ("{target_topping}", "Target Topping Hari Ini"),
-            ("{target_spunbond}", "Target Spunbond Hari Ini"), ("{target_ouast}", "Target OUAST Hari Ini"),
+            ("{target_thermal_bag}", "Target Thermal Bag Hari Ini"), ("{target_ouast}", "Target OUAST Hari Ini"),
             ("{delta_today}", "Selisih Sales Hari Ini vs Target"), ("{delta_mtd}", "Selisih Sales MTD vs Target"),
             ("{ach}", "% Achievement MTD"), ("{std_ach}", "% Target Standard (Time Elapsed)"), ("{ach_diff}", "Selisih % Achievement"),
             ("--- KOMPARASI ---", ""), 

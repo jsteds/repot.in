@@ -683,7 +683,7 @@ class ReportProcessor:
         # --- 7. CONSTRUCT ALL_DATA DICTIONARY ---
         from modules.config_manager import ConfigManager
         config_mgr = ConfigManager()
-        target_tc, target_sc, target_large, target_topping, target_spunbond, target_ouast = 0, 0, 0, 0, 0, 0
+        target_tc, target_sc, target_large, target_topping, target_thermal_bag, target_ouast = 0, 0, 0, 0, 0, 0
         if day_date:
             month_year_str = day_date.strftime("%Y-%m")
             metrics = config_mgr.get_monthly_metric_targets(month_year_str)
@@ -693,7 +693,7 @@ class ReportProcessor:
                 target_sc = metrics.get('sc_we' if is_weekend else 'sc_wd', 0)
                 target_large = metrics.get('large_we' if is_weekend else 'large_wd', 0)
                 target_topping = metrics.get('topping_we' if is_weekend else 'topping_wd', 0)
-                target_spunbond = metrics.get('spunbond_we' if is_weekend else 'spunbond_wd', 0)
+                target_thermal_bag = metrics.get('thermal_bag_we' if is_weekend else 'thermal_bag_wd', 0)
                 target_ouast = metrics.get('ouast_we' if is_weekend else 'ouast_wd', 0)
 
         bulan_indo = {
@@ -711,7 +711,7 @@ class ReportProcessor:
             "day_date_month": day_date_mon_id,
             "target_bulanan": self.target_value, "target_weekday": actual_target_weekday, "target_weekend": actual_target_weekend,
             "target_tc": target_tc, "target_sc": target_sc, "target_large": target_large,
-            "target_topping": target_topping, "target_spunbond": target_spunbond, "target_ouast": target_ouast,
+            "target_topping": target_topping, "target_thermal_bag": target_thermal_bag, "target_ouast": target_ouast,
             
             "std_ach": std_ach, "ach": ach, "ach_diff": ach_diff, "ssg": ssg_new, "ssg_mtd": ssg_mtd,
             "lw_nett": lw_nett, "growth_lw_pct": growth_lw_pct, "lm_nett": lm_nett, "growth_lm_pct": growth_lm_pct,
@@ -1403,17 +1403,26 @@ class ReportProcessor:
         
         # (Override logic removed per user request: strictly load from DB)
         
-        mtd_net = self.results.get('mtd_nett_sales', 0)
-        mtd_tc = self.results.get('mtd_tc', 0)
-        
+        # --- TRUE MTD BULAN BERJALAN ---
         mtd_metrics = {
-            'netsales_mtd': self.results.get('mtd_nett_sales', 0), 
-            'tc_mtd': self.results.get('mtd_tc', 0), 
-            'ac_mtd': self.results.get('mtd_ac', 0),
-            'large_mtd': self.results.get('mtd_qty_large', 0),
-            'toping_mtd': self.results.get('mtd_qty_topping', 0),
-            'ouast_mtd': self.results.get('mtd_ouast_sales', 0)
+            'netsales_mtd': 0, 'tc_mtd': 0, 'ac_mtd': 0,
+            'large_mtd': 0, 'toping_mtd': 0, 'ouast_mtd': 0
         }
+        try:
+            for d in range(1, target_date.day + 1):
+                d_date = target_date.replace(day=d)
+                d_hist = db_manager.get_history_for_date(d_date, site_code)
+                if d_hist:
+                    mtd_metrics['netsales_mtd'] += float(d_hist.get('net_sales', 0) or 0)
+                    mtd_metrics['tc_mtd'] += int(d_hist.get('tc', 0) or 0)
+                    mtd_metrics['large_mtd'] += int(d_hist.get('large_cups', 0) or 0)
+                    mtd_metrics['toping_mtd'] += int(d_hist.get('toping', 0) or 0)
+                    mtd_metrics['ouast_mtd'] += float(d_hist.get('ouast_sales', 0) or 0)
+            
+            if mtd_metrics['tc_mtd'] > 0:
+                mtd_metrics['ac_mtd'] = mtd_metrics['netsales_mtd'] / mtd_metrics['tc_mtd']
+        except Exception as e:
+            import logging; logging.error(f"Failed to calculate true MTD from daily_sales for BSCD: {e}")
         
         output = {
             'targets': {'sales': target_sales_harian, 'other': 7},

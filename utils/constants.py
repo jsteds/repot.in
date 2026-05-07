@@ -78,7 +78,7 @@ SITE_LIST_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZfbICmtpc1dfO
 
 # --- [UBAH: Update Versi Aplikasi] ---
 VERSION_URL = "https://drive.google.com/uc?export=download&id=1Jy7_CodkCJu4wCCo-6lu3D3OTCwrwT5o"
-APP_VERSION = "5.1.1"
+APP_VERSION = "5.1.2"
 # ---------------------------------------------------
 
 # MOP Codes

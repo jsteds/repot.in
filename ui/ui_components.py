@@ -921,15 +921,23 @@ class ConfigTab(QWidget):
         general_layout.addRow("Google Sheet ID:", self.g_sheet_id_input)
         self.chat_it_link_input = QLineEdit()
         self.chat_it_link_input.setPlaceholderText("Masukkan URL link chat WA/Telegram IT atau 'cerberus.klgsys.com/sso' ...")
+        self._chat_it_link_value = ""  # Menyimpan URL asli (termasuk token)
         self.btn_fetch_chat_token = QPushButton("🔄 Ambil Token")
         self.btn_fetch_chat_token.setToolTip("Otomatis mengambil token dari cerberus.klgsys.com/sso (Membutuhkan kredensial Aurora)")
         self.btn_fetch_chat_token.clicked.connect(self._fetch_chat_token)
+        self.btn_clear_chat_token = QPushButton("✕")
+        self.btn_clear_chat_token.setToolTip("Hapus token tersimpan")
+        self.btn_clear_chat_token.setFixedWidth(30)
+        self.btn_clear_chat_token.setStyleSheet("QPushButton { color: #e74c3c; font-weight: bold; } QPushButton:hover { background-color: #fadbd8; }")
+        self.btn_clear_chat_token.clicked.connect(self._clear_chat_token)
+        self.btn_clear_chat_token.setVisible(False)
         
         chat_link_layout = QHBoxLayout()
         chat_link_layout.addWidget(self.chat_it_link_input)
         chat_link_layout.addWidget(self.btn_fetch_chat_token)
+        chat_link_layout.addWidget(self.btn_clear_chat_token)
         general_layout.addRow("Link Chat with IT:", chat_link_layout)
-        self.auto_update_checkbox = QCheckBox("Perbarui Apliakasi Otomatis di Latar Belakang (Seamless Auto-Update)")
+        self.auto_update_checkbox = QCheckBox("Perbarui Aplikasi Otomatis di Latar Belakang (Seamless Auto-Update)")
         general_layout.addWidget(self.auto_update_checkbox)
         
         targets_group = QGroupBox("Pengaturan Target"); targets_layout = QVBoxLayout(targets_group)
@@ -1002,10 +1010,28 @@ class ConfigTab(QWidget):
             self.fetch_progress = None
             
         if success and token_url:
-            self.chat_it_link_input.setText(token_url)
+            self._chat_it_link_value = token_url
+            self._mask_chat_token_input()
             self.parent_app.notification_manager.show('SUCCESS', 'Token Ditemukan', 'Link lengkap telah disisipkan. Silakan simpan pengaturan.')
         else:
             QMessageBox.warning(self, "Gagal Mengambil Token", message)
+
+    def _mask_chat_token_input(self):
+        """Sembunyikan URL asli dan tampilkan teks placeholder jika token tersimpan."""
+        self.chat_it_link_input.setText("✅ Website token tersimpan")
+        self.chat_it_link_input.setReadOnly(True)
+        self.chat_it_link_input.setStyleSheet("QLineEdit { color: #27ae60; font-style: italic; background-color: #f0f0f0; }")
+        self.btn_fetch_chat_token.setVisible(False)
+        self.btn_clear_chat_token.setVisible(True)
+
+    def _clear_chat_token(self):
+        """Reset input agar bisa diisi ulang."""
+        self._chat_it_link_value = ""
+        self.chat_it_link_input.setText("")
+        self.chat_it_link_input.setReadOnly(False)
+        self.chat_it_link_input.setStyleSheet("")
+        self.btn_fetch_chat_token.setVisible(True)
+        self.btn_clear_chat_token.setVisible(False)
 
     def _format_target_display(self, value_str):
         try: num_val = int(float(str(value_str).replace(",", ""))); return f"{num_val:,}"
@@ -1033,7 +1059,12 @@ class ConfigTab(QWidget):
         config = self.config_manager.get_config()
         self.site_code_input.setText(config.get('site_code', ''))
         self.g_sheet_id_input.setText(config.get('google_sheet_id', ''))
-        self.chat_it_link_input.setText(config.get('chat_it_link', ''))
+        saved_chat_link = config.get('chat_it_link', '')
+        self._chat_it_link_value = saved_chat_link
+        if saved_chat_link and 'website_token=' in saved_chat_link:
+            self._mask_chat_token_input()
+        else:
+            self.chat_it_link_input.setText(saved_chat_link)
         self.running_text_input.setText(config.get('running_text', ''))
         self.auto_update_checkbox.setChecked(config.get('auto_update', False))
         saved_template = config.get('default_template', "Default Template")
@@ -1108,7 +1139,8 @@ class ConfigTab(QWidget):
             weekday_weight = float(self.weekday_weight_input.text() or "1.0")
             weekend_weight = float(self.weekend_weight_input.text() or "1.8604651")
             g_sheet_id = self.g_sheet_id_input.text().strip()
-            chat_it_link = self.chat_it_link_input.text().strip()
+            # Gunakan URL asli yang tersimpan jika ada, bukan teks yang tampil di input
+            chat_it_link = self._chat_it_link_value if self._chat_it_link_value else self.chat_it_link_input.text().strip()
             auto_update = self.auto_update_checkbox.isChecked()
 
             if not site_code: QMessageBox.warning(self, "Peringatan", "Site Code tidak boleh kosong."); return False
@@ -1448,7 +1480,7 @@ class BSCDTab(QWidget):
                 # 1b. Ambil Target Dynamic
                 target_map = {
                     'large': 'target_large', 'topping': 'target_topping', 'toping': 'target_topping',
-                    'tc': 'target_tc', 'spunbond': 'target_spunbond', 'food': 'target_ouast', 'foods': 'target_ouast',
+                    'tc': 'target_tc', 'thermal bag': 'target_thermal_bag', 'food': 'target_ouast', 'foods': 'target_ouast',
                     'ouast': 'target_ouast', 'sc': 'target_sc'
                 }
                 target_qty = 0
@@ -1456,7 +1488,7 @@ class BSCDTab(QWidget):
                     target_key = target_map[item_name]
                     target_qty = report_results_data.get(target_key, 0)
                 
-                split_items = ['large', 'topping', 'toping', 'spunbond']
+                split_items = ['large', 'topping', 'toping', 'thermal bag']
                 is_permanent = item_name in split_items
                 current_t_open = self.promo_table.item(row, 1)
                 
@@ -1599,7 +1631,7 @@ class BSCDTab(QWidget):
     # --- FITUR TOMBOL HAPUS ---
     def _add_delete_buttons_to_all_rows(self):
         """Menambahkan tombol hapus di kolom terakhir untuk semua baris."""
-        permanent_items = ["Large", "Topping", "Spunbond"]
+        permanent_items = ["Large", "Topping", "Thermal Bag"]
         
         self.promo_table.blockSignals(True)
         for row in range(self.promo_table.rowCount()):
@@ -1696,7 +1728,7 @@ class BSCDTab(QWidget):
                 if name_key == 'toping': name_key = 'topping'
                 if name_key: data_map[name_key] = item
                 
-            permanent_items = ["Large", "Topping", "Spunbond"]
+            permanent_items = ["Large", "Topping", "Thermal Bag"]
             permanent_names = [p.lower() for p in permanent_items]
             other_data = [item for item in data if item.get("name", "").lower() not in permanent_names and item.get("name", "").lower() != 'toping']
             
@@ -1797,14 +1829,14 @@ class BSCDTab(QWidget):
                     report_data = self.parent_app.report_results_data
                     target_map = {
                         'large': 'target_large', 'topping': 'target_topping', 'toping': 'target_topping',
-                        'tc': 'target_tc', 'spunbond': 'target_spunbond', 'food': 'target_ouast', 'foods': 'target_ouast',
+                        'tc': 'target_tc', 'thermal bag': 'target_thermal_bag', 'food': 'target_ouast', 'foods': 'target_ouast',
                         'ouast': 'target_ouast', 'sc': 'target_sc'
                     }
                     if item_name in target_map:
                         target_key = target_map[item_name]
                         target_qty = report_data.get(target_key, 0)
                 
-                split_items = ['large', 'topping', 'toping', 'spunbond']
+                split_items = ['large', 'topping', 'toping', 'thermal bag']
                 is_permanent = item_name in split_items
                 current_t_open = self.promo_table.item(row, 1)
                 

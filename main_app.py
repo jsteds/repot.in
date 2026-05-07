@@ -645,7 +645,7 @@ class ReportingApp(QMainWindow):
         self._gsheet_sep.setFrameShadow(_QFrame.Sunken)
         self._gsheet_sep.setVisible(False)
 
-        self.upload_gsheet_button = QPushButton("☁ Upload ke Google Sheet")
+        self.upload_gsheet_button = QPushButton("☁ Upload ke Link PBI")
         self.upload_gsheet_button.setFixedHeight(30)
         self.upload_gsheet_button.setEnabled(False)   # disabled until CSV loaded
         self.upload_gsheet_button.setVisible(False)   # hidden until sheet ID set
@@ -1847,6 +1847,22 @@ class ReportingApp(QMainWindow):
         
         # Konten Log (HTML Format)
         html_content = """
+        <h2 style="color: #2980b9;">Repot.in - Versi 5.1.2</h2>
+<p><b>Status:</b> Patch Update<br><b>Tanggal:</b> 08 Mei 2026</p>
+<hr>
+
+<h3 style="color: #e67e22;">🚀 Fitur dan Optimasi </h3>
+<ul>
+    <li><b>Dashboard:</b> Perubahan metode kalkulasi Productivity.</li>
+    <li><b>System:</b> Optimasi sistem konfigurasi aplikasi.</li>
+    <li><b>System:</b> Update beberapa wording definisi.</li>
+</ul>
+
+<h3 style="color: #c0392b;">🐞 Bug Fixes</h3>
+<ul>
+    <li>Fix known bugs.</li>
+</ul>
+
         <h2 style="color: #2980b9;">Repot.in - Versi 5.1.1</h2>
 <p><b>Status:</b> minor Update<br><b>Tanggal:</b> 03 Mei 2026</p>
 <hr>
